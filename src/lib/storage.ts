@@ -1,6 +1,6 @@
 import { todayKey } from "./date";
 import { emptyData } from "../types";
-import type { AppData, QuickType } from "../types";
+import type { AppData, Frequency, PriorityKey, QuickType } from "../types";
 
 const DATA_KEY = "north-data";
 export const LANG_KEY = "north-lang";
@@ -8,17 +8,49 @@ export const THEME_KEY = "north-theme";
 
 export function normalizeData(data: Partial<AppData>): AppData {
   return {
-    tasks: data.tasks ?? [],
-    movements: data.movements ?? [],
-    events: data.events ?? [],
-    goals: data.goals ?? [],
-    budgets: data.budgets ?? [],
-    habits: (data.habits ?? []).map((habit) => ({
-      ...habit,
-      frequency: habit.frequency ?? "daily",
-      history: habit.history ?? (habit.done ? [todayKey()] : []),
-      streak: habit.streak ?? habit.history?.length ?? 0,
+    tasks: ensureArray(data.tasks).map((task) => ({
+      id: text(task.id),
+      title: text(task.title),
+      areaKey: task.areaKey === "estudios" ? "estudios" : "dia",
+      time: text(task.time),
+      priority: priority(task.priority),
     })),
+    movements: ensureArray(data.movements).map((movement) => ({
+      id: text(movement.id),
+      title: text(movement.title),
+      category: text(movement.category),
+      amount: number(movement.amount),
+      type: movement.type === "income" ? "income" : "expense",
+    })),
+    events: ensureArray(data.events).map((event) => ({
+      id: text(event.id),
+      title: text(event.title),
+      date: text(event.date),
+      time: text(event.time),
+    })),
+    goals: ensureArray(data.goals).map((goal) => ({
+      id: text(goal.id),
+      title: text(goal.title),
+      area: text(goal.area),
+      progress: Math.min(100, Math.max(0, number(goal.progress))),
+      target: text(goal.target),
+    })),
+    budgets: ensureArray(data.budgets).map((budget) => ({
+      id: text(budget.id),
+      category: text(budget.category),
+      monthlyLimit: number(budget.monthlyLimit),
+    })),
+    habits: ensureArray(data.habits).map((habit) => {
+      const history = ensureArray(habit.history).map((date) => text(date)).filter(Boolean);
+      return {
+        id: text(habit.id),
+        name: text(habit.name),
+        done: Boolean(habit.done),
+        frequency: frequency(habit.frequency),
+        history: history.length ? history : habit.done ? [todayKey()] : [],
+        streak: number(habit.streak || history.length),
+      };
+    }),
   };
 }
 
@@ -36,7 +68,11 @@ export function saveData(data: AppData) {
 }
 
 export function parseImportedData(value: string) {
-  return normalizeData(JSON.parse(value));
+  const parsed = JSON.parse(value);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Invalid North data");
+  }
+  return normalizeData(parsed);
 }
 
 export function findItem(data: AppData, type: QuickType, id: string) {
@@ -46,4 +82,25 @@ export function findItem(data: AppData, type: QuickType, id: string) {
   if (type === "event") return data.events.find((item) => item.id === id) ?? null;
   if (type === "goal") return data.goals.find((item) => item.id === id) ?? null;
   return data.budgets.find((item) => item.id === id) ?? null;
+}
+
+function ensureArray<T>(value: T[] | undefined) {
+  return Array.isArray(value) ? value : [];
+}
+
+function text(value: unknown) {
+  return typeof value === "string" ? value : "";
+}
+
+function number(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function priority(value: unknown): PriorityKey {
+  return value === "high" || value === "low" ? value : "medium";
+}
+
+function frequency(value: unknown): Frequency {
+  return value === "weekly" || value === "monthly" ? value : "daily";
 }
