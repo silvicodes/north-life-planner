@@ -76,6 +76,15 @@ export const copy = {
       title: "Empieza añadiendo lo que quieres organizar hoy.",
       body: "Cada persona que abra North verá su propio espacio vacío. Los datos se guardan en su navegador.",
     },
+    onboarding: {
+      eyebrow: "Primeros pasos",
+      title: "Elige una acción para empezar",
+      actions: {
+        task: "Añade tu primera tarea",
+        expense: "Añade tu primer gasto",
+        habit: "Crea tu primer hábito",
+      },
+    },
     labels: {
       available: "Balance",
       pending: "Tareas",
@@ -227,6 +236,15 @@ export const copy = {
       eyebrow: "Your space",
       title: "Start by adding what you want to organize today.",
       body: "Every person who opens North gets their own empty space. Data is saved in their browser.",
+    },
+    onboarding: {
+      eyebrow: "First steps",
+      title: "Choose one action to begin",
+      actions: {
+        task: "Add your first task",
+        expense: "Add your first expense",
+        habit: "Create your first habit",
+      },
     },
     labels: {
       available: "Balance",
