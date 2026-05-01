@@ -34,6 +34,13 @@ export function monthDays(date: Date) {
   return days;
 }
 
+export function monthGridDays(date: Date) {
+  const days = monthDays(date);
+  const firstDay = days[0]?.getDay() || 1;
+  const mondayBasedOffset = firstDay === 0 ? 6 : firstDay - 1;
+  return [...Array<Date | null>(mondayBasedOffset).fill(null), ...days];
+}
+
 export function formatToday(locale: string) {
   return new Intl.DateTimeFormat(locale, {
     weekday: "long",

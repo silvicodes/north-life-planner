@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
-import { addDays, dateKey, formatToday, monthDays, startOfWeek, todayKey } from "./lib/date";
+import { addDays, dateKey, formatToday, monthGridDays, startOfWeek, todayKey } from "./lib/date";
 import { findItem, LANG_KEY, loadData, parseImportedData, saveData, THEME_KEY } from "./lib/storage";
 import type {
   AppData,
@@ -55,6 +55,11 @@ const icons = {
   objetivos: Target,
 };
 
+type PendingDelete = {
+  type: QuickType;
+  id: string;
+} | null;
+
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -64,6 +69,7 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [quickType, setQuickType] = useState<QuickType | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
   const [data, setData] = useState<AppData>(loadData);
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem(LANG_KEY) === "en" ? "en" : "es"));
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"));
@@ -206,17 +212,21 @@ function App() {
   }
 
   function deleteItem(type: QuickType, id: string) {
-    if (!window.confirm(t.confirmDelete)) return;
+    setPendingDelete({ type, id });
+  }
 
+  function confirmDelete() {
+    if (!pendingDelete) return;
     setData((current) => ({
       ...current,
-      tasks: type === "task" || type === "studyTask" ? current.tasks.filter((item) => item.id !== id) : current.tasks,
-      movements: type === "income" || type === "expense" ? current.movements.filter((item) => item.id !== id) : current.movements,
-      habits: type === "habit" ? current.habits.filter((item) => item.id !== id) : current.habits,
-      events: type === "event" ? current.events.filter((item) => item.id !== id) : current.events,
-      goals: type === "goal" ? current.goals.filter((item) => item.id !== id) : current.goals,
-      budgets: type === "budget" ? current.budgets.filter((item) => item.id !== id) : current.budgets,
+      tasks: pendingDelete.type === "task" || pendingDelete.type === "studyTask" ? current.tasks.filter((item) => item.id !== pendingDelete.id) : current.tasks,
+      movements: pendingDelete.type === "income" || pendingDelete.type === "expense" ? current.movements.filter((item) => item.id !== pendingDelete.id) : current.movements,
+      habits: pendingDelete.type === "habit" ? current.habits.filter((item) => item.id !== pendingDelete.id) : current.habits,
+      events: pendingDelete.type === "event" ? current.events.filter((item) => item.id !== pendingDelete.id) : current.events,
+      goals: pendingDelete.type === "goal" ? current.goals.filter((item) => item.id !== pendingDelete.id) : current.goals,
+      budgets: pendingDelete.type === "budget" ? current.budgets.filter((item) => item.id !== pendingDelete.id) : current.budgets,
     }));
+    setPendingDelete(null);
   }
 
   function exportData() {
@@ -369,6 +379,16 @@ function App() {
           onSelect={setQuickType}
           onSave={saveItem}
           onClose={closeQuick}
+        />
+      )}
+      {pendingDelete && (
+        <ConfirmDialog
+          title={t.confirmDelete}
+          body={t.confirmDeleteBody}
+          cancelLabel={t.cancel}
+          confirmLabel={t.delete}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={confirmDelete}
         />
       )}
     </div>
@@ -557,7 +577,8 @@ function CalendarView({ t, data, openQuick, deleteItem }: ViewProps) {
         )}
         {mode === "month" && (
           <div className="calendar-month">
-            {monthDays(selected).map((day) => {
+            {monthGridDays(selected).map((day, index) => {
+              if (!day) return <span className="calendar-empty-day" key={`empty-${index}`} />;
               const key = dateKey(day);
               const count = data.events.filter((event) => event.date === key).length;
               return (
@@ -995,6 +1016,39 @@ function ItemActions({
       <button className="icon-button small danger" onClick={onDelete} aria-label={deleteLabel}>
         <Trash2 size={15} />
       </button>
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  title,
+  body,
+  cancelLabel,
+  confirmLabel,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  body: string;
+  cancelLabel: string;
+  confirmLabel: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="modal-layer" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <div className="confirm-modal">
+        <h2 id="confirm-title">{title}</h2>
+        <p>{body}</p>
+        <div className="form-actions">
+          <button type="button" className="ghost-button" onClick={onCancel}>
+            {cancelLabel}
+          </button>
+          <button type="button" className="primary-button danger" onClick={onConfirm}>
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
