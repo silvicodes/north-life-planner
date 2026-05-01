@@ -482,6 +482,27 @@ button {
   gap: 10px;
 }
 
+.file-input {
+  display: none;
+}
+
+.data-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.data-tools > span {
+  color: var(--muted);
+}
+
+.data-tools > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .task {
   align-items: flex-start;
   gap: 11px;
@@ -615,6 +636,157 @@ button {
 .budget-topline span {
   color: var(--muted);
   font-size: 0.82rem;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.chart-card {
+  display: grid;
+  gap: 14px;
+  min-height: 184px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.chart-card > span {
+  color: var(--muted);
+}
+
+.chart-row {
+  display: grid;
+  gap: 7px;
+}
+
+.chart-row div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.chart-row span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.chart-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.chart-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), #91b7a7);
+}
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.calendar-toolbar input {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.segmented-control {
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.segmented-control button,
+.calendar-week button,
+.calendar-month button {
+  border: 0;
+  color: var(--nav-text);
+  background: transparent;
+}
+
+.segmented-control button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-weight: 800;
+}
+
+.segmented-control button.active,
+.calendar-week button.active,
+.calendar-month button.active {
+  color: var(--nav-active);
+  background: var(--soft-active);
+}
+
+.calendar-detail {
+  display: grid;
+}
+
+.calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(86px, 1fr));
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.calendar-week button {
+  display: grid;
+  gap: 6px;
+  min-height: 94px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.calendar-week b,
+.calendar-month b {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--brand-contrast);
+  background: var(--brand);
+  font-size: 0.78rem;
+}
+
+.calendar-month {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.calendar-month button {
+  display: grid;
+  min-height: 68px;
+  align-content: space-between;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
 }
 
 .dot {
@@ -962,7 +1134,8 @@ button {
   }
 
   .hero-stats,
-  .routine-grid {
+  .routine-grid,
+  .chart-grid {
     grid-template-columns: 1fr;
   }
 
@@ -979,6 +1152,27 @@ button {
   .movement,
   .budget-topline {
     flex-wrap: wrap;
+  }
+
+  .data-tools,
+  .calendar-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .data-tools > div,
+  .calendar-toolbar input,
+  .segmented-control {
+    width: 100%;
+  }
+
+  .calendar-month {
+    gap: 5px;
+  }
+
+  .calendar-month button {
+    min-height: 54px;
+    padding: 6px;
   }
 
   .item-actions {

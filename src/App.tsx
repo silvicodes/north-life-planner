@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
+  Download,
   Edit3,
   Flame,
   Globe2,
@@ -19,10 +20,11 @@ import {
   Sun,
   Target,
   Trash2,
+  Upload,
   WalletCards,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 
 type Section = "inicio" | "finanzas" | "estudios" | "dia" | "calendario" | "objetivos";
@@ -30,6 +32,7 @@ type Lang = "es" | "en";
 type Theme = "light" | "dark";
 type PriorityKey = "high" | "medium" | "low";
 type Frequency = "daily" | "weekly" | "monthly";
+type CalendarMode = "day" | "week" | "month";
 type QuickType = "expense" | "income" | "studyTask" | "task" | "habit" | "event" | "goal" | "budget";
 
 type Task = {
@@ -132,6 +135,9 @@ const copy = {
     noDate: "Sin fecha",
     completedToday: "Completado hoy",
     streakHistory: "Historial",
+    exportData: "Exportar datos",
+    importData: "Importar datos",
+    importError: "No se pudo importar el archivo",
     nav: {
       inicio: "Inicio",
       finanzas: "Finanzas",
@@ -172,6 +178,16 @@ const copy = {
       thisWeek: "Esta semana",
       todayAgenda: "Agenda",
       goals: "Objetivos",
+      charts: "Gráficos",
+      progressTracking: "Seguimiento de progreso",
+      dataPortability: "Datos",
+      dataPortabilityBody: "Exporta una copia de seguridad o importa tus datos de North.",
+      calendarDay: "Día",
+      calendarWeek: "Semana",
+      calendarMonth: "Mes",
+      noEventsForDate: "No hay eventos en esta fecha",
+      incomeVsExpenses: "Ingresos vs gastos",
+      spendingByCategory: "Gastos por categoría",
     },
     priorities: {
       high: "Alta",
@@ -245,6 +261,9 @@ const copy = {
     noDate: "No date",
     completedToday: "Completed today",
     streakHistory: "History",
+    exportData: "Export data",
+    importData: "Import data",
+    importError: "Could not import that file",
     nav: {
       inicio: "Home",
       finanzas: "Finance",
@@ -285,6 +304,16 @@ const copy = {
       thisWeek: "This week",
       todayAgenda: "Agenda",
       goals: "Goals",
+      charts: "Charts",
+      progressTracking: "Progress tracking",
+      dataPortability: "Data",
+      dataPortabilityBody: "Export a backup or import your North data.",
+      calendarDay: "Day",
+      calendarWeek: "Week",
+      calendarMonth: "Month",
+      noEventsForDate: "No events on this date",
+      incomeVsExpenses: "Income vs expenses",
+      spendingByCategory: "Spending by category",
     },
     priorities: {
       high: "High",
@@ -342,6 +371,33 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function dateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, amount: number) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + amount);
+  return next;
+}
+
+function startOfWeek(date: Date) {
+  const next = new Date(date);
+  const day = next.getDay() || 7;
+  next.setDate(next.getDate() - day + 1);
+  return next;
+}
+
+function monthDays(date: Date) {
+  const first = new Date(date.getFullYear(), date.getMonth(), 1);
+  const last = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  const days: Date[] = [];
+  for (let day = 1; day <= last.getDate(); day += 1) {
+    days.push(new Date(first.getFullYear(), first.getMonth(), day));
+  }
+  return days;
+}
+
 function normalizeData(data: Partial<AppData>): AppData {
   return {
     tasks: data.tasks ?? [],
@@ -384,6 +440,7 @@ function App() {
   const [data, setData] = useState<AppData>(loadData);
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem("north-lang") === "en" ? "en" : "es"));
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("north-theme") === "dark" ? "dark" : "light"));
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const t = copy[lang];
   const money = useMemo(
@@ -532,6 +589,29 @@ function App() {
     }));
   }
 
+  function exportData() {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `north-data-${todayKey()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const imported = JSON.parse(String(reader.result));
+        setData(normalizeData(imported));
+      } catch {
+        window.alert(t.importError);
+      }
+    };
+    reader.readAsText(file);
+  }
+
   const editingItem = quickType && editingId ? findItem(data, quickType, editingId) : null;
 
   return (
@@ -602,7 +682,18 @@ function App() {
           </div>
         </header>
 
-        <section className="page-grid">{renderSection(active, { t, data, money, openQuick, deleteItem, setData })}</section>
+        <section className="page-grid">
+          {renderSection(active, {
+            t,
+            data,
+            money,
+            openQuick,
+            deleteItem,
+            setData,
+            exportData,
+            importData: () => importInputRef.current?.click(),
+          })}
+        </section>
 
         <footer className="app-footer">
           <span>{t.createdBy}</span>
@@ -629,6 +720,17 @@ function App() {
       </nav>
 
       {menuOpen && <button className="scrim" aria-label={t.closeMenu} onClick={() => setMenuOpen(false)} />}
+      <input
+        ref={importInputRef}
+        className="file-input"
+        type="file"
+        accept="application/json,.json"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) importData(file);
+          event.currentTarget.value = "";
+        }}
+      />
       {quickType && (
         <QuickAdd
           type={quickType}
@@ -651,6 +753,8 @@ type ViewProps = {
   openQuick: (type?: QuickType, id?: string) => void;
   deleteItem: (type: QuickType, id: string) => void;
   setData: Dispatch<SetStateAction<AppData>>;
+  exportData: () => void;
+  importData: () => void;
 };
 
 function renderSection(active: Section, props: ViewProps) {
@@ -670,7 +774,7 @@ function renderSection(active: Section, props: ViewProps) {
   }
 }
 
-function HomeView({ t, data, money, openQuick, deleteItem, setData }: ViewProps) {
+function HomeView({ t, data, money, openQuick, deleteItem, setData, exportData, importData }: ViewProps) {
   const income = data.movements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
   const expenses = data.movements.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
   const balance = income - expenses;
@@ -710,6 +814,21 @@ function HomeView({ t, data, money, openQuick, deleteItem, setData }: ViewProps)
       <Panel title={t.labels.todayAgenda} icon={CalendarDays} viewLabel={t.view} className="span-12">
         <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
+      <Panel title={t.labels.dataPortability} icon={Download} viewLabel={t.view} className="span-12">
+        <div className="data-tools">
+          <span>{t.labels.dataPortabilityBody}</span>
+          <div>
+            <button className="ghost-button" onClick={exportData}>
+              <Download size={16} />
+              {t.exportData}
+            </button>
+            <button className="ghost-button" onClick={importData}>
+              <Upload size={16} />
+              {t.importData}
+            </button>
+          </div>
+        </div>
+      </Panel>
     </>
   );
 }
@@ -729,6 +848,9 @@ function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
       </Panel>
       <Panel title={t.labels.budgets} icon={Target} viewLabel={t.view} className="span-8">
         <BudgetList t={t} budgets={data.budgets} movements={data.movements} money={money} openQuick={openQuick} deleteItem={deleteItem} />
+      </Panel>
+      <Panel title={t.labels.charts} icon={CircleDollarSign} viewLabel={t.view} className="span-12">
+        <FinanceCharts t={t} movements={data.movements} money={money} />
       </Panel>
       <Panel title={t.labels.recentMovements} icon={CircleDollarSign} viewLabel={t.view} className="span-12">
         <MovementList t={t} movements={data.movements} money={money} openQuick={openQuick} deleteItem={deleteItem} />
@@ -764,10 +886,65 @@ function DayView({ t, data, openQuick, deleteItem, setData }: ViewProps) {
 }
 
 function CalendarView({ t, data, openQuick, deleteItem }: ViewProps) {
+  const [mode, setMode] = useState<CalendarMode>("day");
+  const [selectedDate, setSelectedDate] = useState(todayKey());
+  const selected = new Date(`${selectedDate}T00:00:00`);
+  const eventsForDay = data.events.filter((event) => event.date === selectedDate);
+  const weekStart = startOfWeek(selected);
+  const week = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
+
   return (
-    <Panel title={t.labels.todayAgenda} icon={Clock3} viewLabel={t.view} className="span-12">
-      <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
-    </Panel>
+    <>
+      <Panel title={t.labels.todayAgenda} icon={Clock3} viewLabel={t.view} className="span-12">
+        <div className="calendar-toolbar">
+          <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
+          <div className="segmented-control">
+            {(["day", "week", "month"] as CalendarMode[]).map((item) => (
+              <button className={mode === item ? "active" : ""} key={item} onClick={() => setMode(item)}>
+                {item === "day" ? t.labels.calendarDay : item === "week" ? t.labels.calendarWeek : t.labels.calendarMonth}
+              </button>
+            ))}
+          </div>
+        </div>
+        {mode === "day" && (
+          <div className="calendar-detail">
+            <EventList t={t} events={eventsForDay} openQuick={openQuick} deleteItem={deleteItem} emptyMessage={t.labels.noEventsForDate} />
+          </div>
+        )}
+        {mode === "week" && (
+          <div className="calendar-week">
+            {week.map((day) => {
+              const key = dateKey(day);
+              const count = data.events.filter((event) => event.date === key).length;
+              return (
+                <button className={key === selectedDate ? "active" : ""} key={key} onClick={() => setSelectedDate(key)}>
+                  <strong>{day.toLocaleDateString(t.locale, { weekday: "short" })}</strong>
+                  <span>{day.getDate()}</span>
+                  <b>{count}</b>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {mode === "month" && (
+          <div className="calendar-month">
+            {monthDays(selected).map((day) => {
+              const key = dateKey(day);
+              const count = data.events.filter((event) => event.date === key).length;
+              return (
+                <button className={key === selectedDate ? "active" : ""} key={key} onClick={() => setSelectedDate(key)}>
+                  <span>{day.getDate()}</span>
+                  {count > 0 && <b>{count}</b>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Panel>
+      <Panel title={t.labels.thisWeek} icon={CalendarDays} viewLabel={t.view} className="span-12">
+        <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
+      </Panel>
+    </>
   );
 }
 
@@ -782,6 +959,13 @@ function GoalsView({ t, data, openQuick, deleteItem }: ViewProps) {
 
   return (
     <>
+      <Panel title={t.labels.progressTracking} icon={Target} viewLabel={t.view} className="span-12">
+        <BarChart
+          title={t.labels.progressTracking}
+          rows={data.goals.map((goal) => ({ label: goal.title, value: goal.progress }))}
+          money={{ format: (value: number) => `${value}%` } as Intl.NumberFormat}
+        />
+      </Panel>
       {data.goals.map((goal) => (
         <Panel title={goal.area} icon={Target} viewLabel={t.view} className="span-4" key={goal.id}>
           <ProgressRing value={goal.progress} label={goal.title} />
@@ -985,6 +1169,73 @@ function BudgetList({
   );
 }
 
+function FinanceCharts({
+  t,
+  movements,
+  money,
+}: {
+  t: (typeof copy)[Lang];
+  movements: Movement[];
+  money: Intl.NumberFormat;
+}) {
+  const income = movements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
+  const expenses = movements.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
+  const categoryTotals = movements
+    .filter((item) => item.type === "expense")
+    .reduce<Record<string, number>>((totals, movement) => {
+      totals[movement.category] = (totals[movement.category] ?? 0) + movement.amount;
+      return totals;
+    }, {});
+
+  return (
+    <div className="chart-grid">
+      <BarChart
+        title={t.labels.incomeVsExpenses}
+        rows={[
+          { label: t.labels.income, value: income },
+          { label: t.labels.expenses, value: expenses },
+        ]}
+        money={money}
+      />
+      <BarChart
+        title={t.labels.spendingByCategory}
+        rows={Object.entries(categoryTotals).map(([label, value]) => ({ label, value }))}
+        money={money}
+      />
+    </div>
+  );
+}
+
+function BarChart({ title, rows, money }: { title: string; rows: { label: string; value: number }[]; money: { format: (value: number) => string } }) {
+  const max = Math.max(1, ...rows.map((row) => row.value));
+
+  if (!rows.length) {
+    return (
+      <div className="chart-card">
+        <strong>{title}</strong>
+        <span>0</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chart-card">
+      <strong>{title}</strong>
+      {rows.map((row) => (
+        <div className="chart-row" key={row.label}>
+          <div>
+            <span>{row.label}</span>
+            <b>{money.format(row.value)}</b>
+          </div>
+          <div className="chart-track">
+            <span style={{ width: `${Math.max(4, (row.value / max) * 100)}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function HabitGrid({
   t,
   habits,
@@ -1049,13 +1300,15 @@ function EventList({
   events,
   openQuick,
   deleteItem,
+  emptyMessage,
 }: {
   t: (typeof copy)[Lang];
   events: EventItem[];
   openQuick: (type?: QuickType, id?: string) => void;
   deleteItem: (type: QuickType, id: string) => void;
+  emptyMessage?: string;
 }) {
-  if (!events.length) return <EmptyState t={t} type="event" openQuick={openQuick} />;
+  if (!events.length) return <EmptyState t={t} type="event" openQuick={openQuick} message={emptyMessage} />;
 
   return (
     <div className="task-list">
@@ -1081,11 +1334,11 @@ function EventList({
   );
 }
 
-function EmptyState({ t, type, openQuick }: { t: (typeof copy)[Lang]; type: QuickType; openQuick: (type?: QuickType, id?: string) => void }) {
+function EmptyState({ t, type, openQuick, message }: { t: (typeof copy)[Lang]; type: QuickType; openQuick: (type?: QuickType, id?: string) => void; message?: string }) {
   return (
     <div className="empty-state">
       <strong>{t.empty.title}</strong>
-      <span>{t.empty.body}</span>
+      <span>{message ?? t.empty.body}</span>
       <button className="ghost-button" onClick={() => openQuick(type)}>
         <Plus size={16} />
         {t.empty.cta}

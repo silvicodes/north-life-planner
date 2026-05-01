@@ -13,6 +13,7 @@ It combines personal finance, study planning, habits, tasks, events, and goals i
   - Current balance
   - Recent movements
   - Budget categories with monthly limits
+  - Lightweight finance charts
 - Study planning:
   - Academic tasks
   - Study-focused task entries
@@ -26,6 +27,9 @@ It combines personal finance, study planning, habits, tasks, events, and goals i
   - Custom goals
   - Progress percentage
   - Target notes
+  - Progress tracking chart
+- Calendar views by day, week, and month
+- Data export and import with JSON files
 - Edit and delete actions for user-created items
 - Quick-add modal for fast data entry
 - Empty states designed for first-time users
@@ -168,9 +172,6 @@ The app includes:
 
 Possible next steps:
 
-- Add calendar views by day, week, and month
-- Add charts for finance and progress tracking
-- Add data export and import
 - Add Supabase authentication and cloud sync
 - Convert the app into an installable PWA
 
