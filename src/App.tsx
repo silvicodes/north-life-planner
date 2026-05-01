@@ -26,333 +26,25 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
-
-type Section = "inicio" | "finanzas" | "estudios" | "dia" | "calendario" | "objetivos";
-type Lang = "es" | "en";
-type Theme = "light" | "dark";
-type PriorityKey = "high" | "medium" | "low";
-type Frequency = "daily" | "weekly" | "monthly";
-type CalendarMode = "day" | "week" | "month";
-type QuickType = "expense" | "income" | "studyTask" | "task" | "habit" | "event" | "goal" | "budget";
-
-type Task = {
-  id: string;
-  title: string;
-  areaKey: "estudios" | "dia";
-  time: string;
-  priority: PriorityKey;
-};
-
-type Movement = {
-  id: string;
-  title: string;
-  category: string;
-  amount: number;
-  type: "income" | "expense";
-};
-
-type Habit = {
-  id: string;
-  name: string;
-  done: boolean;
-  streak: number;
-  frequency: Frequency;
-  history: string[];
-};
-
-type EventItem = {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-};
-
-type Goal = {
-  id: string;
-  title: string;
-  area: string;
-  progress: number;
-  target: string;
-};
-
-type Budget = {
-  id: string;
-  category: string;
-  monthlyLimit: number;
-};
-
-type AppData = {
-  tasks: Task[];
-  movements: Movement[];
-  habits: Habit[];
-  events: EventItem[];
-  goals: Goal[];
-  budgets: Budget[];
-};
-
-const emptyData: AppData = {
-  tasks: [],
-  movements: [],
-  habits: [],
-  events: [],
-  goals: [],
-  budgets: [],
-};
-
-const copy = {
-  es: {
-    locale: "es-ES",
-    date: "Viernes, 1 de mayo",
-    brandSubtitle: "Organización diaria",
-    todayRhythm: "Ritmo de hoy",
-    habitsCompleted: "hábitos completados",
-    search: "Buscar",
-    openMenu: "Abrir menú",
-    closeMenu: "Cerrar menú",
-    darkMode: "Activar modo oscuro",
-    lightMode: "Activar modo claro",
-    switchLanguage: "Cambiar idioma a inglés",
-    settings: "Ajustes",
-    view: "Ver",
-    createdBy: "Creado por",
-    addQuick: "Añadir rápido",
-    save: "Guardar",
-    cancel: "Cancelar",
-    edit: "Editar",
-    delete: "Eliminar",
-    title: "Título",
-    category: "Categoría",
-    amount: "Cantidad",
-    monthlyLimit: "Límite mensual",
-    frequency: "Frecuencia",
-    time: "Hora",
-    dateLabel: "Fecha",
-    area: "Área",
-    target: "Meta",
-    progress: "Progreso",
-    markDone: "Marcar como hecho",
-    days: "días",
-    noDate: "Sin fecha",
-    completedToday: "Completado hoy",
-    streakHistory: "Historial",
-    exportData: "Exportar datos",
-    importData: "Importar datos",
-    importError: "No se pudo importar el archivo",
-    nav: {
-      inicio: "Inicio",
-      finanzas: "Finanzas",
-      estudios: "Estudios",
-      dia: "Día",
-      calendario: "Agenda",
-      objetivos: "Objetivos",
-    },
-    hero: {
-      eyebrow: "Tu espacio",
-      title: "Empieza añadiendo lo que quieres organizar hoy.",
-      body: "Cada persona que abra North verá su propio espacio vacío. Los datos se guardan en su navegador.",
-    },
-    labels: {
-      available: "Balance",
-      pending: "Tareas",
-      habits: "Hábitos",
-      priorities: "Prioridades",
-      monthFinance: "Finanzas del mes",
-      income: "Ingresos",
-      expenses: "Gastos",
-      plannedSavings: "Balance actual",
-      studies: "Estudios",
-      week: "Semana",
-      summary: "Resumen",
-      estimatedBalance: "Balance estimado",
-      averageDailySpend: "Gasto medio",
-      savingsGoal: "Objetivos activos",
-      recentMovements: "Movimientos recientes",
-      budgets: "Presupuestos",
-      spent: "Gastado",
-      remaining: "Restante",
-      overBudget: "Sobre el límite",
-      subjects: "Plan de estudio",
-      academicTasks: "Tareas académicas",
-      todayTasks: "Tareas de hoy",
-      routine: "Hábitos",
-      thisWeek: "Esta semana",
-      todayAgenda: "Agenda",
-      goals: "Objetivos",
-      charts: "Gráficos",
-      progressTracking: "Seguimiento de progreso",
-      dataPortability: "Datos",
-      dataPortabilityBody: "Exporta una copia de seguridad o importa tus datos de North.",
-      calendarDay: "Día",
-      calendarWeek: "Semana",
-      calendarMonth: "Mes",
-      noEventsForDate: "No hay eventos en esta fecha",
-      incomeVsExpenses: "Ingresos vs gastos",
-      spendingByCategory: "Gastos por categoría",
-    },
-    priorities: {
-      high: "Alta",
-      medium: "Media",
-      low: "Baja",
-    },
-    quick: {
-      expense: "Gasto",
-      income: "Ingreso",
-      studyTask: "Tarea estudio",
-      task: "Tarea",
-      habit: "Hábito",
-      event: "Evento",
-      goal: "Objetivo",
-      budget: "Presupuesto",
-    },
-    frequencies: {
-      daily: "Diario",
-      weekly: "Semanal",
-      monthly: "Mensual",
-    },
-    placeholders: {
-      task: "Ej. Preparar la presentación",
-      category: "Ej. Casa, transporte, universidad",
-      amount: "0",
-      budget: "Ej. Comida",
-      habit: "Ej. Leer 20 minutos",
-      event: "Ej. Clase, cita o entrega",
-      goal: "Ej. Ahorrar para el viaje",
-      target: "Ej. 500 EUR, domingo, 21 días",
-      area: "Ej. Finanzas, estudios, salud",
-    },
-    empty: {
-      title: "Aún no hay nada aquí",
-      body: "Añade tu primer elemento y North empezará a organizarlo en esta vista.",
-      cta: "Añadir",
-    },
-  },
-  en: {
-    locale: "en-GB",
-    date: "Friday, May 1",
-    brandSubtitle: "Daily organization",
-    todayRhythm: "Today's rhythm",
-    habitsCompleted: "habits completed",
-    search: "Search",
-    openMenu: "Open menu",
-    closeMenu: "Close menu",
-    darkMode: "Turn on dark mode",
-    lightMode: "Turn on light mode",
-    switchLanguage: "Switch language to Spanish",
-    settings: "Settings",
-    view: "View",
-    createdBy: "Created by",
-    addQuick: "Quick add",
-    save: "Save",
-    cancel: "Cancel",
-    edit: "Edit",
-    delete: "Delete",
-    title: "Title",
-    category: "Category",
-    amount: "Amount",
-    monthlyLimit: "Monthly limit",
-    frequency: "Frequency",
-    time: "Time",
-    dateLabel: "Date",
-    area: "Area",
-    target: "Target",
-    progress: "Progress",
-    markDone: "Mark as done",
-    days: "days",
-    noDate: "No date",
-    completedToday: "Completed today",
-    streakHistory: "History",
-    exportData: "Export data",
-    importData: "Import data",
-    importError: "Could not import that file",
-    nav: {
-      inicio: "Home",
-      finanzas: "Finance",
-      estudios: "Study",
-      dia: "Day",
-      calendario: "Agenda",
-      objetivos: "Goals",
-    },
-    hero: {
-      eyebrow: "Your space",
-      title: "Start by adding what you want to organize today.",
-      body: "Every person who opens North gets their own empty space. Data is saved in their browser.",
-    },
-    labels: {
-      available: "Balance",
-      pending: "Tasks",
-      habits: "Habits",
-      priorities: "Priorities",
-      monthFinance: "Month finance",
-      income: "Income",
-      expenses: "Expenses",
-      plannedSavings: "Current balance",
-      studies: "Study",
-      week: "Week",
-      summary: "Summary",
-      estimatedBalance: "Estimated balance",
-      averageDailySpend: "Average spend",
-      savingsGoal: "Active goals",
-      recentMovements: "Recent movements",
-      budgets: "Budgets",
-      spent: "Spent",
-      remaining: "Remaining",
-      overBudget: "Over budget",
-      subjects: "Study plan",
-      academicTasks: "Academic tasks",
-      todayTasks: "Today's tasks",
-      routine: "Habits",
-      thisWeek: "This week",
-      todayAgenda: "Agenda",
-      goals: "Goals",
-      charts: "Charts",
-      progressTracking: "Progress tracking",
-      dataPortability: "Data",
-      dataPortabilityBody: "Export a backup or import your North data.",
-      calendarDay: "Day",
-      calendarWeek: "Week",
-      calendarMonth: "Month",
-      noEventsForDate: "No events on this date",
-      incomeVsExpenses: "Income vs expenses",
-      spendingByCategory: "Spending by category",
-    },
-    priorities: {
-      high: "High",
-      medium: "Medium",
-      low: "Low",
-    },
-    quick: {
-      expense: "Expense",
-      income: "Income",
-      studyTask: "Study task",
-      task: "Task",
-      habit: "Habit",
-      event: "Event",
-      goal: "Goal",
-      budget: "Budget",
-    },
-    frequencies: {
-      daily: "Daily",
-      weekly: "Weekly",
-      monthly: "Monthly",
-    },
-    placeholders: {
-      task: "E.g. Prepare the presentation",
-      category: "E.g. Home, transport, university",
-      amount: "0",
-      budget: "E.g. Food",
-      habit: "E.g. Read for 20 minutes",
-      event: "E.g. Class, appointment, deadline",
-      goal: "E.g. Save for the trip",
-      target: "E.g. EUR 500, Sunday, 21 days",
-      area: "E.g. Finance, study, health",
-    },
-    empty: {
-      title: "Nothing here yet",
-      body: "Add your first item and North will organize it into this view.",
-      cta: "Add",
-    },
-  },
-} as const;
+import { addDays, dateKey, formatToday, monthDays, startOfWeek, todayKey } from "./lib/date";
+import { findItem, LANG_KEY, loadData, parseImportedData, saveData, THEME_KEY } from "./lib/storage";
+import type {
+  AppData,
+  Budget,
+  CalendarMode,
+  EventItem,
+  Frequency,
+  Goal,
+  Habit,
+  Lang,
+  Movement,
+  PriorityKey,
+  QuickType,
+  Section,
+  Task,
+  Theme,
+} from "./types";
+import { copy } from "./i18n/copy";
 
 const icons = {
   inicio: Home,
@@ -367,82 +59,18 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function dateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function addDays(date: Date, amount: number) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + amount);
-  return next;
-}
-
-function startOfWeek(date: Date) {
-  const next = new Date(date);
-  const day = next.getDay() || 7;
-  next.setDate(next.getDate() - day + 1);
-  return next;
-}
-
-function monthDays(date: Date) {
-  const first = new Date(date.getFullYear(), date.getMonth(), 1);
-  const last = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-  const days: Date[] = [];
-  for (let day = 1; day <= last.getDate(); day += 1) {
-    days.push(new Date(first.getFullYear(), first.getMonth(), day));
-  }
-  return days;
-}
-
-function normalizeData(data: Partial<AppData>): AppData {
-  return {
-    tasks: data.tasks ?? [],
-    movements: data.movements ?? [],
-    events: data.events ?? [],
-    goals: data.goals ?? [],
-    budgets: data.budgets ?? [],
-    habits: (data.habits ?? []).map((habit) => ({
-      ...habit,
-      frequency: habit.frequency ?? "daily",
-      history: habit.history ?? (habit.done ? [todayKey()] : []),
-      streak: habit.streak ?? habit.history?.length ?? 0,
-    })),
-  };
-}
-
-function loadData(): AppData {
-  try {
-    const saved = localStorage.getItem("north-data");
-    return saved ? normalizeData({ ...emptyData, ...JSON.parse(saved) }) : emptyData;
-  } catch {
-    return emptyData;
-  }
-}
-
-function findItem(data: AppData, type: QuickType, id: string) {
-  if (type === "task" || type === "studyTask") return data.tasks.find((item) => item.id === id) ?? null;
-  if (type === "income" || type === "expense") return data.movements.find((item) => item.id === id) ?? null;
-  if (type === "habit") return data.habits.find((item) => item.id === id) ?? null;
-  if (type === "event") return data.events.find((item) => item.id === id) ?? null;
-  if (type === "goal") return data.goals.find((item) => item.id === id) ?? null;
-  return data.budgets.find((item) => item.id === id) ?? null;
-}
-
 function App() {
   const [active, setActive] = useState<Section>("inicio");
   const [menuOpen, setMenuOpen] = useState(false);
   const [quickType, setQuickType] = useState<QuickType | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [data, setData] = useState<AppData>(loadData);
-  const [lang, setLang] = useState<Lang>(() => (localStorage.getItem("north-lang") === "en" ? "en" : "es"));
-  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("north-theme") === "dark" ? "dark" : "light"));
+  const [lang, setLang] = useState<Lang>(() => (localStorage.getItem(LANG_KEY) === "en" ? "en" : "es"));
+  const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"));
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const t = copy[lang];
+  const todayLabel = useMemo(() => formatToday(t.locale), [t.locale]);
   const money = useMemo(
     () =>
       new Intl.NumberFormat(t.locale, {
@@ -464,17 +92,17 @@ function App() {
   );
 
   useEffect(() => {
-    localStorage.setItem("north-data", JSON.stringify(data));
+    saveData(data);
   }, [data]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem("north-theme", theme);
+    localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
   useEffect(() => {
     document.documentElement.lang = lang;
-    localStorage.setItem("north-lang", lang);
+    localStorage.setItem(LANG_KEY, lang);
   }, [lang]);
 
   const completedHabits = data.habits.filter((habit) => habit.history.includes(todayKey())).length;
@@ -578,6 +206,8 @@ function App() {
   }
 
   function deleteItem(type: QuickType, id: string) {
+    if (!window.confirm(t.confirmDelete)) return;
+
     setData((current) => ({
       ...current,
       tasks: type === "task" || type === "studyTask" ? current.tasks.filter((item) => item.id !== id) : current.tasks,
@@ -603,8 +233,7 @@ function App() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const imported = JSON.parse(String(reader.result));
-        setData(normalizeData(imported));
+        setData(parseImportedData(String(reader.result)));
       } catch {
         window.alert(t.importError);
       }
@@ -657,7 +286,7 @@ function App() {
             <Menu size={21} />
           </button>
           <div>
-            <p className="eyebrow">{t.date}</p>
+            <p className="eyebrow">{todayLabel}</p>
             <h1>{title}</h1>
           </div>
           <div className="topbar-actions">
