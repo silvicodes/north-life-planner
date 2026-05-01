@@ -12,18 +12,21 @@ It combines personal finance, study planning, habits, tasks, events, and goals i
   - Expenses
   - Current balance
   - Recent movements
+  - Budget categories with monthly limits
 - Study planning:
   - Academic tasks
   - Study-focused task entries
 - Daily organization:
   - Tasks
-  - Habits
+  - Recurring habits
+  - Habit completion history and streak tracking
   - Agenda items
   - Priorities
 - Goals:
   - Custom goals
   - Progress percentage
   - Target notes
+- Edit and delete actions for user-created items
 - Quick-add modal for fast data entry
 - Empty states designed for first-time users
 - English and Spanish language switcher
@@ -165,9 +168,6 @@ The app includes:
 
 Possible next steps:
 
-- Add edit and delete actions for all items
-- Add recurring habits and streak history
-- Add budget categories and monthly limits
 - Add calendar views by day, week, and month
 - Add charts for finance and progress tracking
 - Add data export and import
