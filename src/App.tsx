@@ -27,7 +27,9 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
 import { addDays, dateKey, formatToday, monthGridDays, startOfWeek, todayKey } from "./lib/date";
-import { findItem, LANG_KEY, loadData, parseImportedData, saveData, THEME_KEY } from "./lib/storage";
+import { clearLocalData, findItem, LANG_KEY, loadData, parseImportedData, saveData, THEME_KEY } from "./lib/storage";
+import { isSupabaseConfigured, loadCloudData, saveCloudData, supabase } from "./lib/supabase";
+import { emptyData } from "./types";
 import type {
   AppData,
   Budget,
@@ -45,6 +47,7 @@ import type {
   Theme,
 } from "./types";
 import { copy } from "./i18n/copy";
+import type { User } from "@supabase/supabase-js";
 
 const icons = {
   inicio: Home,
@@ -59,6 +62,8 @@ type PendingDelete = {
   type: QuickType;
   id: string;
 } | null;
+type AuthMode = "signIn" | "signUp";
+type SyncStatus = "local" | "loading" | "synced" | "saving" | "error";
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -68,11 +73,20 @@ function App() {
   const [active, setActive] = useState<Section>("inicio");
   const [menuOpen, setMenuOpen] = useState(false);
   const [quickType, setQuickType] = useState<QuickType | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
   const [data, setData] = useState<AppData>(loadData);
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem(LANG_KEY) === "en" ? "en" : "es"));
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"));
+  const [authUser, setAuthUser] = useState<User | null>(null);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authMode, setAuthMode] = useState<AuthMode>("signIn");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState("");
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(isSupabaseConfigured ? "loading" : "local");
+  const [cloudReady, setCloudReady] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const t = copy[lang];
@@ -99,7 +113,37 @@ function App() {
 
   useEffect(() => {
     saveData(data);
-  }, [data]);
+    if (!authUser || !cloudReady) return;
+
+    setSyncStatus("saving");
+    saveCloudData(authUser.id, data)
+      .then(() => setSyncStatus("synced"))
+      .catch(() => setSyncStatus("error"));
+  }, [authUser, cloudReady, data]);
+
+  useEffect(() => {
+    if (!supabase) return;
+
+    supabase.auth.getSession().then(({ data: sessionData }) => {
+      const user = sessionData.session?.user ?? null;
+      setAuthUser(user);
+      if (user) syncFromCloud(user.id);
+      else setSyncStatus("local");
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user ?? null;
+      setAuthUser(user);
+      setCloudReady(false);
+      if (user) syncFromCloud(user.id);
+      else {
+        setSyncStatus("local");
+        setCloudReady(false);
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -229,6 +273,12 @@ function App() {
     setPendingDelete(null);
   }
 
+  function handleClearLocalData() {
+    clearLocalData();
+    setData(emptyData);
+    setSettingsOpen(false);
+  }
+
   function exportData() {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -249,6 +299,44 @@ function App() {
       }
     };
     reader.readAsText(file);
+  }
+
+  async function syncFromCloud(userId: string) {
+    setSyncStatus("loading");
+    try {
+      const cloudData = await loadCloudData(userId);
+      if (cloudData) {
+        setData(cloudData);
+      } else {
+        await saveCloudData(userId, data);
+      }
+      setCloudReady(true);
+      setSyncStatus("synced");
+    } catch {
+      setSyncStatus("error");
+    }
+  }
+
+  async function handleAuth(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase) return;
+
+    setAuthLoading(true);
+    setAuthMessage("");
+    const credentials = { email: authEmail, password: authPassword };
+    const { error } =
+      authMode === "signIn"
+        ? await supabase.auth.signInWithPassword(credentials)
+        : await supabase.auth.signUp(credentials);
+
+    if (error) setAuthMessage(error.message);
+    else if (authMode === "signUp") setAuthMessage(t.checkEmail);
+    setAuthLoading(false);
+  }
+
+  async function handleSignOut() {
+    if (!supabase) return;
+    await supabase.auth.signOut();
   }
 
   const editingItem = quickType && editingId ? findItem(data, quickType, editingId) : null;
@@ -315,7 +403,7 @@ function App() {
             >
               <ThemeIcon size={19} />
             </button>
-            <button className="icon-button" aria-label={t.settings}>
+            <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label={t.settings}>
               <Settings size={19} />
             </button>
           </div>
@@ -331,6 +419,19 @@ function App() {
             setData,
             exportData,
             importData: () => importInputRef.current?.click(),
+            authUser,
+            authEmail,
+            authPassword,
+            authMode,
+            authLoading,
+            authMessage,
+            syncStatus,
+            supabaseEnabled: isSupabaseConfigured,
+            setAuthEmail,
+            setAuthPassword,
+            setAuthMode,
+            handleAuth,
+            handleSignOut,
           })}
         </section>
 
@@ -381,6 +482,23 @@ function App() {
           onClose={closeQuick}
         />
       )}
+      {settingsOpen && (
+        <SettingsDialog
+          t={t}
+          lang={lang}
+          theme={theme}
+          authUser={authUser}
+          syncStatus={syncStatus}
+          supabaseEnabled={isSupabaseConfigured}
+          onLangChange={setLang}
+          onThemeChange={setTheme}
+          onExport={exportData}
+          onImport={() => importInputRef.current?.click()}
+          onClearLocalData={handleClearLocalData}
+          onSignOut={handleSignOut}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       {pendingDelete && (
         <ConfirmDialog
           title={t.confirmDelete}
@@ -404,6 +522,19 @@ type ViewProps = {
   setData: Dispatch<SetStateAction<AppData>>;
   exportData: () => void;
   importData: () => void;
+  authUser: User | null;
+  authEmail: string;
+  authPassword: string;
+  authMode: AuthMode;
+  authLoading: boolean;
+  authMessage: string;
+  syncStatus: SyncStatus;
+  supabaseEnabled: boolean;
+  setAuthEmail: Dispatch<SetStateAction<string>>;
+  setAuthPassword: Dispatch<SetStateAction<string>>;
+  setAuthMode: Dispatch<SetStateAction<AuthMode>>;
+  handleAuth: (event: FormEvent<HTMLFormElement>) => void;
+  handleSignOut: () => void;
 };
 
 function renderSection(active: Section, props: ViewProps) {
@@ -423,7 +554,29 @@ function renderSection(active: Section, props: ViewProps) {
   }
 }
 
-function HomeView({ t, data, money, openQuick, deleteItem, setData, exportData, importData }: ViewProps) {
+function HomeView({
+  t,
+  data,
+  money,
+  openQuick,
+  deleteItem,
+  setData,
+  exportData,
+  importData,
+  authUser,
+  authEmail,
+  authPassword,
+  authMode,
+  authLoading,
+  authMessage,
+  syncStatus,
+  supabaseEnabled,
+  setAuthEmail,
+  setAuthPassword,
+  setAuthMode,
+  handleAuth,
+  handleSignOut,
+}: ViewProps) {
   const income = data.movements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
   const expenses = data.movements.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
   const balance = income - expenses;
@@ -462,6 +615,24 @@ function HomeView({ t, data, money, openQuick, deleteItem, setData, exportData, 
       </Panel>
       <Panel title={t.labels.todayAgenda} icon={CalendarDays} viewLabel={t.view} className="span-12">
         <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
+      </Panel>
+      <Panel title={t.cloudSync} icon={Sparkles} viewLabel={t.view} className="span-12">
+        <AuthPanel
+          t={t}
+          user={authUser}
+          email={authEmail}
+          password={authPassword}
+          mode={authMode}
+          loading={authLoading}
+          message={authMessage}
+          syncStatus={syncStatus}
+          enabled={supabaseEnabled}
+          onEmailChange={setAuthEmail}
+          onPasswordChange={setAuthPassword}
+          onModeChange={setAuthMode}
+          onSubmit={handleAuth}
+          onSignOut={handleSignOut}
+        />
       </Panel>
       <Panel title={t.labels.dataPortability} icon={Download} viewLabel={t.view} className="span-12">
         <div className="data-tools">
@@ -676,6 +847,199 @@ function MetricRow({ label, value, positive }: { label: string; value: string; p
       <strong className={positive ? "positive" : ""}>{value}</strong>
     </div>
   );
+}
+
+function SettingsDialog({
+  t,
+  lang,
+  theme,
+  authUser,
+  syncStatus,
+  supabaseEnabled,
+  onLangChange,
+  onThemeChange,
+  onExport,
+  onImport,
+  onClearLocalData,
+  onSignOut,
+  onClose,
+}: {
+  t: (typeof copy)[Lang];
+  lang: Lang;
+  theme: Theme;
+  authUser: User | null;
+  syncStatus: SyncStatus;
+  supabaseEnabled: boolean;
+  onLangChange: Dispatch<SetStateAction<Lang>>;
+  onThemeChange: Dispatch<SetStateAction<Theme>>;
+  onExport: () => void;
+  onImport: () => void;
+  onClearLocalData: () => void;
+  onSignOut: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-layer" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <div className="settings-modal">
+        <header>
+          <h2 id="settings-title">{t.settings}</h2>
+          <button className="icon-button" onClick={onClose} aria-label={t.closeMenu}>
+            <X size={19} />
+          </button>
+        </header>
+
+        <section className="settings-section">
+          <h3>{t.language}</h3>
+          <div className="segmented-control settings-segment">
+            <button className={lang === "es" ? "active" : ""} onClick={() => onLangChange("es")}>Español</button>
+            <button className={lang === "en" ? "active" : ""} onClick={() => onLangChange("en")}>English</button>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>{t.appearance}</h3>
+          <div className="segmented-control settings-segment">
+            <button className={theme === "light" ? "active" : ""} onClick={() => onThemeChange("light")}>{t.lightTheme}</button>
+            <button className={theme === "dark" ? "active" : ""} onClick={() => onThemeChange("dark")}>{t.darkTheme}</button>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>{t.cloudSync}</h3>
+          <div className="settings-row">
+            <span>{authUser ? `${t.signedInAs} ${authUser.email}` : supabaseEnabled ? t.syncDisabled : t.authHint}</span>
+            <span className="sync-pill">{syncLabel(t, syncStatus)}</span>
+          </div>
+          {authUser && (
+            <button className="ghost-button" onClick={onSignOut}>
+              {t.signOut}
+            </button>
+          )}
+        </section>
+
+        <section className="settings-section">
+          <h3>{t.dataManagement}</h3>
+          <div className="settings-actions">
+            <button className="ghost-button" onClick={onExport}>
+              <Download size={16} />
+              {t.exportData}
+            </button>
+            <button className="ghost-button" onClick={onImport}>
+              <Upload size={16} />
+              {t.importData}
+            </button>
+          </div>
+        </section>
+
+        <section className="settings-section danger-section">
+          <h3>{t.dangerZone}</h3>
+          <p>{t.clearLocalDataBody}</p>
+          <button
+            className="primary-button danger"
+            onClick={() => {
+              if (window.confirm(t.clearLocalDataBody)) onClearLocalData();
+            }}
+          >
+            {t.clearLocalData}
+          </button>
+        </section>
+
+        <section className="settings-section">
+          <h3>{t.about}</h3>
+          <p>North · {t.appVersion}</p>
+          <p>silvicodes · ReadyCreation</p>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function AuthPanel({
+  t,
+  user,
+  email,
+  password,
+  mode,
+  loading,
+  message,
+  syncStatus,
+  enabled,
+  onEmailChange,
+  onPasswordChange,
+  onModeChange,
+  onSubmit,
+  onSignOut,
+}: {
+  t: (typeof copy)[Lang];
+  user: User | null;
+  email: string;
+  password: string;
+  mode: AuthMode;
+  loading: boolean;
+  message: string;
+  syncStatus: SyncStatus;
+  enabled: boolean;
+  onEmailChange: Dispatch<SetStateAction<string>>;
+  onPasswordChange: Dispatch<SetStateAction<string>>;
+  onModeChange: Dispatch<SetStateAction<AuthMode>>;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSignOut: () => void;
+}) {
+  if (!enabled) {
+    return (
+      <div className="auth-panel">
+        <div>
+          <strong>{t.localMode}</strong>
+          <span>{t.authHint}</span>
+        </div>
+        <span className="sync-pill">{t.syncDisabled}</span>
+      </div>
+    );
+  }
+
+  if (user) {
+    return (
+      <div className="auth-panel">
+        <div>
+          <strong>{t.signedInAs}</strong>
+          <span>{user.email}</span>
+        </div>
+        <span className="sync-pill">{syncLabel(t, syncStatus)}</span>
+        <button className="ghost-button" onClick={onSignOut}>
+          {t.signOut}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form className="auth-form" onSubmit={onSubmit}>
+      <label>
+        <span>{t.email}</span>
+        <input type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} required />
+      </label>
+      <label>
+        <span>{t.password}</span>
+        <input type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} required minLength={6} />
+      </label>
+      {message && <span className="auth-message">{message}</span>}
+      <div className="form-actions">
+        <button type="button" className="ghost-button" onClick={() => onModeChange(mode === "signIn" ? "signUp" : "signIn")}>
+          {mode === "signIn" ? t.createAccount : t.haveAccount}
+        </button>
+        <button type="submit" className="primary-button" disabled={loading}>
+          {mode === "signIn" ? t.signIn : t.signUp}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function syncLabel(t: (typeof copy)[Lang], status: SyncStatus) {
+  if (status === "saving") return t.syncSaving;
+  if (status === "synced") return t.syncReady;
+  if (status === "loading") return t.syncSaving;
+  return t.syncDisabled;
 }
 
 function TaskList({

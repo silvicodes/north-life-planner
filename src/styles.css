@@ -507,6 +507,67 @@ button {
   gap: 10px;
 }
 
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.auth-panel > div {
+  display: grid;
+  gap: 4px;
+}
+
+.auth-panel span,
+.auth-message {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.sync-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  color: var(--nav-active);
+  background: var(--soft-active);
+  font-weight: 800;
+}
+
+.auth-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.auth-form label span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.auth-form .form-actions,
+.auth-message {
+  grid-column: 1 / -1;
+}
+
 .task {
   align-items: flex-start;
   gap: 11px;
@@ -991,12 +1052,21 @@ button {
 }
 
 .quick-modal,
-.confirm-modal {
+.confirm-modal,
+.settings-modal {
   width: min(520px, 100%);
   padding: 18px;
   border-radius: 22px;
   background: var(--panel-solid);
   box-shadow: 0 22px 60px var(--modal-shadow);
+}
+
+.settings-modal {
+  display: grid;
+  gap: 14px;
+  width: min(640px, 100%);
+  max-height: min(760px, calc(100vh - 40px));
+  overflow: auto;
 }
 
 .confirm-modal {
@@ -1017,6 +1087,51 @@ button {
   justify-content: space-between;
   gap: 14px;
   margin-bottom: 16px;
+}
+
+.settings-modal header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.settings-modal h2,
+.settings-section h3 {
+  margin: 0;
+}
+
+.settings-section {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.settings-section p,
+.settings-row span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.settings-row,
+.settings-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.settings-segment {
+  width: fit-content;
+}
+
+.danger-section {
+  border-color: color-mix(in srgb, #8f352d 40%, var(--border));
 }
 
 .quick-grid {
@@ -1180,15 +1295,21 @@ button {
   }
 
   .data-tools,
+  .auth-panel,
   .calendar-toolbar {
     align-items: stretch;
     flex-direction: column;
   }
 
   .data-tools > div,
+  .auth-form,
   .calendar-toolbar input,
   .segmented-control {
     width: 100%;
+  }
+
+  .auth-form {
+    grid-template-columns: 1fr;
   }
 
   .calendar-month {

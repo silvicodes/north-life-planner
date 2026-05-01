@@ -36,7 +36,7 @@ It combines personal finance, study planning, habits, tasks, events, and goals i
 - English and Spanish language switcher
 - Light and dark mode
 - Fully responsive layout for mobile, tablet, and desktop
-- Local-first data persistence with `localStorage`
+- Local-first data persistence with optional Supabase cloud sync
 - Fast Vite build with a small frontend footprint
 
 ## Tech Stack
@@ -46,7 +46,8 @@ It combines personal finance, study planning, habits, tasks, events, and goals i
 - Vite
 - CSS
 - Lucide React icons
-- Browser `localStorage` for persistence
+- Browser `localStorage` for local persistence
+- Supabase Auth and database sync when configured
 
 ## Getting Started
 
@@ -125,7 +126,7 @@ north-app/
 
 ## Data Storage
 
-North is currently local-first.
+North is local-first by default and can sync to Supabase when configured.
 
 User data is stored in the browser using `localStorage`, under the key:
 
@@ -141,6 +142,45 @@ north-lang
 ```
 
 This means each person who opens the app has their own separate data on their own browser.
+
+## Supabase Setup
+
+Create a `.env` file using `.env.example`:
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Create this table in Supabase:
+
+```sql
+create table public.north_user_data (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  data jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.north_user_data enable row level security;
+
+create policy "Users can read own North data"
+on public.north_user_data
+for select
+using (auth.uid() = user_id);
+
+create policy "Users can insert own North data"
+on public.north_user_data
+for insert
+with check (auth.uid() = user_id);
+
+create policy "Users can update own North data"
+on public.north_user_data
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+```
+
+Without these environment variables, North stays fully usable in local mode.
 
 ## Responsive Design
 
@@ -172,7 +212,6 @@ The app includes:
 
 Possible next steps:
 
-- Add Supabase authentication and cloud sync
 - Convert the app into an installable PWA
 
 ## Credits
