@@ -267,6 +267,16 @@ button {
   border-radius: 13px;
 }
 
+.icon-button.small {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.icon-button.danger {
+  color: #8f352d;
+}
+
 .ghost-button {
   display: inline-flex;
   align-items: center;
@@ -481,6 +491,10 @@ button {
   background: var(--soft);
 }
 
+.task .priority {
+  margin-top: 1px;
+}
+
 .task > svg {
   flex: 0 0 auto;
   margin-top: 2px;
@@ -565,6 +579,44 @@ button {
   min-height: 54px;
 }
 
+.movement b {
+  flex: 0 0 auto;
+}
+
+.item-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.budget-item {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.budget-topline {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.budget-topline div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.budget-topline span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .dot {
   width: 12px;
   height: 12px;
@@ -628,7 +680,7 @@ button {
   gap: 10px;
 }
 
-.habit-grid button,
+.habit-card,
 .quick-grid button,
 .routine,
 .day {
@@ -637,7 +689,7 @@ button {
   background: var(--surface);
 }
 
-.habit-grid button {
+.habit-card {
   display: grid;
   gap: 6px;
   min-height: 92px;
@@ -646,9 +698,22 @@ button {
   text-align: left;
 }
 
-.habit-grid button.done {
+.habit-card.done {
   border-color: var(--accent-border);
   background: var(--accent-soft);
+}
+
+.habit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.habit-actions .ghost-button {
+  flex: 1 1 auto;
 }
 
 .empty-state {
@@ -908,6 +973,17 @@ button {
 
   .quick-grid.type-picker {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .task,
+  .movement,
+  .budget-topline {
+    flex-wrap: wrap;
+  }
+
+  .item-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .bottom-nav {

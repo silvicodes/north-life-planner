@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
+  Edit3,
   Flame,
   Globe2,
   GraduationCap,
@@ -17,6 +18,7 @@ import {
   Sparkles,
   Sun,
   Target,
+  Trash2,
   WalletCards,
   X,
 } from "lucide-react";
@@ -27,7 +29,8 @@ type Section = "inicio" | "finanzas" | "estudios" | "dia" | "calendario" | "obje
 type Lang = "es" | "en";
 type Theme = "light" | "dark";
 type PriorityKey = "high" | "medium" | "low";
-type QuickType = "expense" | "income" | "studyTask" | "task" | "habit" | "event" | "goal";
+type Frequency = "daily" | "weekly" | "monthly";
+type QuickType = "expense" | "income" | "studyTask" | "task" | "habit" | "event" | "goal" | "budget";
 
 type Task = {
   id: string;
@@ -50,6 +53,8 @@ type Habit = {
   name: string;
   done: boolean;
   streak: number;
+  frequency: Frequency;
+  history: string[];
 };
 
 type EventItem = {
@@ -67,12 +72,19 @@ type Goal = {
   target: string;
 };
 
+type Budget = {
+  id: string;
+  category: string;
+  monthlyLimit: number;
+};
+
 type AppData = {
   tasks: Task[];
   movements: Movement[];
   habits: Habit[];
   events: EventItem[];
   goals: Goal[];
+  budgets: Budget[];
 };
 
 const emptyData: AppData = {
@@ -81,6 +93,7 @@ const emptyData: AppData = {
   habits: [],
   events: [],
   goals: [],
+  budgets: [],
 };
 
 const copy = {
@@ -102,9 +115,13 @@ const copy = {
     addQuick: "Añadir rápido",
     save: "Guardar",
     cancel: "Cancelar",
+    edit: "Editar",
+    delete: "Eliminar",
     title: "Título",
     category: "Categoría",
     amount: "Cantidad",
+    monthlyLimit: "Límite mensual",
+    frequency: "Frecuencia",
     time: "Hora",
     dateLabel: "Fecha",
     area: "Área",
@@ -113,6 +130,8 @@ const copy = {
     markDone: "Marcar como hecho",
     days: "días",
     noDate: "Sin fecha",
+    completedToday: "Completado hoy",
+    streakHistory: "Historial",
     nav: {
       inicio: "Inicio",
       finanzas: "Finanzas",
@@ -142,6 +161,10 @@ const copy = {
       averageDailySpend: "Gasto medio",
       savingsGoal: "Objetivos activos",
       recentMovements: "Movimientos recientes",
+      budgets: "Presupuestos",
+      spent: "Gastado",
+      remaining: "Restante",
+      overBudget: "Sobre el límite",
       subjects: "Plan de estudio",
       academicTasks: "Tareas académicas",
       todayTasks: "Tareas de hoy",
@@ -163,11 +186,18 @@ const copy = {
       habit: "Hábito",
       event: "Evento",
       goal: "Objetivo",
+      budget: "Presupuesto",
+    },
+    frequencies: {
+      daily: "Diario",
+      weekly: "Semanal",
+      monthly: "Mensual",
     },
     placeholders: {
       task: "Ej. Preparar la presentación",
       category: "Ej. Casa, transporte, universidad",
       amount: "0",
+      budget: "Ej. Comida",
       habit: "Ej. Leer 20 minutos",
       event: "Ej. Clase, cita o entrega",
       goal: "Ej. Ahorrar para el viaje",
@@ -198,9 +228,13 @@ const copy = {
     addQuick: "Quick add",
     save: "Save",
     cancel: "Cancel",
+    edit: "Edit",
+    delete: "Delete",
     title: "Title",
     category: "Category",
     amount: "Amount",
+    monthlyLimit: "Monthly limit",
+    frequency: "Frequency",
     time: "Time",
     dateLabel: "Date",
     area: "Area",
@@ -209,6 +243,8 @@ const copy = {
     markDone: "Mark as done",
     days: "days",
     noDate: "No date",
+    completedToday: "Completed today",
+    streakHistory: "History",
     nav: {
       inicio: "Home",
       finanzas: "Finance",
@@ -238,6 +274,10 @@ const copy = {
       averageDailySpend: "Average spend",
       savingsGoal: "Active goals",
       recentMovements: "Recent movements",
+      budgets: "Budgets",
+      spent: "Spent",
+      remaining: "Remaining",
+      overBudget: "Over budget",
       subjects: "Study plan",
       academicTasks: "Academic tasks",
       todayTasks: "Today's tasks",
@@ -259,11 +299,18 @@ const copy = {
       habit: "Habit",
       event: "Event",
       goal: "Goal",
+      budget: "Budget",
+    },
+    frequencies: {
+      daily: "Daily",
+      weekly: "Weekly",
+      monthly: "Monthly",
     },
     placeholders: {
       task: "E.g. Prepare the presentation",
       category: "E.g. Home, transport, university",
       amount: "0",
+      budget: "E.g. Food",
       habit: "E.g. Read for 20 minutes",
       event: "E.g. Class, appointment, deadline",
       goal: "E.g. Save for the trip",
@@ -291,19 +338,49 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function normalizeData(data: Partial<AppData>): AppData {
+  return {
+    tasks: data.tasks ?? [],
+    movements: data.movements ?? [],
+    events: data.events ?? [],
+    goals: data.goals ?? [],
+    budgets: data.budgets ?? [],
+    habits: (data.habits ?? []).map((habit) => ({
+      ...habit,
+      frequency: habit.frequency ?? "daily",
+      history: habit.history ?? (habit.done ? [todayKey()] : []),
+      streak: habit.streak ?? habit.history?.length ?? 0,
+    })),
+  };
+}
+
 function loadData(): AppData {
   try {
     const saved = localStorage.getItem("north-data");
-    return saved ? { ...emptyData, ...JSON.parse(saved) } : emptyData;
+    return saved ? normalizeData({ ...emptyData, ...JSON.parse(saved) }) : emptyData;
   } catch {
     return emptyData;
   }
+}
+
+function findItem(data: AppData, type: QuickType, id: string) {
+  if (type === "task" || type === "studyTask") return data.tasks.find((item) => item.id === id) ?? null;
+  if (type === "income" || type === "expense") return data.movements.find((item) => item.id === id) ?? null;
+  if (type === "habit") return data.habits.find((item) => item.id === id) ?? null;
+  if (type === "event") return data.events.find((item) => item.id === id) ?? null;
+  if (type === "goal") return data.goals.find((item) => item.id === id) ?? null;
+  return data.budgets.find((item) => item.id === id) ?? null;
 }
 
 function App() {
   const [active, setActive] = useState<Section>("inicio");
   const [menuOpen, setMenuOpen] = useState(false);
   const [quickType, setQuickType] = useState<QuickType | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [data, setData] = useState<AppData>(loadData);
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem("north-lang") === "en" ? "en" : "es"));
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem("north-theme") === "dark" ? "dark" : "light"));
@@ -343,69 +420,119 @@ function App() {
     localStorage.setItem("north-lang", lang);
   }, [lang]);
 
-  const completedHabits = data.habits.filter((habit) => habit.done).length;
+  const completedHabits = data.habits.filter((habit) => habit.history.includes(todayKey())).length;
   const title = navItems.find((item) => item.id === active)?.label ?? t.nav.inicio;
   const ThemeIcon = theme === "dark" ? Sun : Moon;
 
-  function openQuick(type: QuickType = "task") {
+  function openQuick(type: QuickType = "task", id?: string) {
     setQuickType(type);
+    setEditingId(id ?? null);
   }
 
-  function addItem(type: QuickType, payload: Record<string, FormDataEntryValue>) {
+  function closeQuick() {
+    setQuickType(null);
+    setEditingId(null);
+  }
+
+  function saveItem(type: QuickType, payload: Record<string, FormDataEntryValue>) {
     setData((current) => {
       if (type === "income" || type === "expense") {
         const amount = Number(payload.amount) || 0;
         const movement: Movement = {
-          id: createId(),
+          id: editingId ?? createId(),
           title: String(payload.title || t.quick[type]),
           category: String(payload.category || t.nav.finanzas),
           amount,
           type,
         };
+        if (editingId) {
+          return { ...current, movements: current.movements.map((item) => (item.id === editingId ? movement : item)) };
+        }
         return { ...current, movements: [movement, ...current.movements] };
       }
 
       if (type === "habit") {
+        const existing = current.habits.find((item) => item.id === editingId);
         const habit: Habit = {
-          id: createId(),
+          id: editingId ?? createId(),
           name: String(payload.title || t.quick.habit),
-          done: false,
-          streak: 0,
+          done: existing?.done ?? false,
+          streak: existing?.streak ?? 0,
+          frequency: String(payload.frequency || existing?.frequency || "daily") as Frequency,
+          history: existing?.history ?? [],
         };
+        if (editingId) {
+          return { ...current, habits: current.habits.map((item) => (item.id === editingId ? habit : item)) };
+        }
         return { ...current, habits: [habit, ...current.habits] };
       }
 
       if (type === "event") {
         const event: EventItem = {
-          id: createId(),
+          id: editingId ?? createId(),
           title: String(payload.title || t.quick.event),
           date: String(payload.date || ""),
           time: String(payload.time || ""),
         };
+        if (editingId) {
+          return { ...current, events: current.events.map((item) => (item.id === editingId ? event : item)) };
+        }
         return { ...current, events: [event, ...current.events] };
       }
 
       if (type === "goal") {
         const goal: Goal = {
-          id: createId(),
+          id: editingId ?? createId(),
           title: String(payload.title || t.quick.goal),
           area: String(payload.area || t.labels.goals),
           progress: Math.min(100, Math.max(0, Number(payload.progress) || 0)),
           target: String(payload.target || ""),
         };
+        if (editingId) {
+          return { ...current, goals: current.goals.map((item) => (item.id === editingId ? goal : item)) };
+        }
         return { ...current, goals: [goal, ...current.goals] };
       }
 
+      if (type === "budget") {
+        const budget: Budget = {
+          id: editingId ?? createId(),
+          category: String(payload.title || payload.category || t.quick.budget),
+          monthlyLimit: Number(payload.amount) || 0,
+        };
+        if (editingId) {
+          return { ...current, budgets: current.budgets.map((item) => (item.id === editingId ? budget : item)) };
+        }
+        return { ...current, budgets: [budget, ...current.budgets] };
+      }
+
       const task: Task = {
-        id: createId(),
+        id: editingId ?? createId(),
         title: String(payload.title || t.quick.task),
         areaKey: type === "studyTask" ? "estudios" : "dia",
         time: String(payload.time || ""),
         priority: String(payload.priority || "medium") as PriorityKey,
       };
+      if (editingId) {
+        return { ...current, tasks: current.tasks.map((item) => (item.id === editingId ? task : item)) };
+      }
       return { ...current, tasks: [task, ...current.tasks] };
     });
   }
+
+  function deleteItem(type: QuickType, id: string) {
+    setData((current) => ({
+      ...current,
+      tasks: type === "task" || type === "studyTask" ? current.tasks.filter((item) => item.id !== id) : current.tasks,
+      movements: type === "income" || type === "expense" ? current.movements.filter((item) => item.id !== id) : current.movements,
+      habits: type === "habit" ? current.habits.filter((item) => item.id !== id) : current.habits,
+      events: type === "event" ? current.events.filter((item) => item.id !== id) : current.events,
+      goals: type === "goal" ? current.goals.filter((item) => item.id !== id) : current.goals,
+      budgets: type === "budget" ? current.budgets.filter((item) => item.id !== id) : current.budgets,
+    }));
+  }
+
+  const editingItem = quickType && editingId ? findItem(data, quickType, editingId) : null;
 
   return (
     <div className="app-shell">
@@ -475,7 +602,7 @@ function App() {
           </div>
         </header>
 
-        <section className="page-grid">{renderSection(active, { t, data, money, openQuick, setData })}</section>
+        <section className="page-grid">{renderSection(active, { t, data, money, openQuick, deleteItem, setData })}</section>
 
         <footer className="app-footer">
           <span>{t.createdBy}</span>
@@ -506,9 +633,11 @@ function App() {
         <QuickAdd
           type={quickType}
           t={t}
+          editingItem={editingItem}
+          isEditing={Boolean(editingId)}
           onSelect={setQuickType}
-          onAdd={addItem}
-          onClose={() => setQuickType(null)}
+          onSave={saveItem}
+          onClose={closeQuick}
         />
       )}
     </div>
@@ -519,7 +648,8 @@ type ViewProps = {
   t: (typeof copy)[Lang];
   data: AppData;
   money: Intl.NumberFormat;
-  openQuick: (type?: QuickType) => void;
+  openQuick: (type?: QuickType, id?: string) => void;
+  deleteItem: (type: QuickType, id: string) => void;
   setData: Dispatch<SetStateAction<AppData>>;
 };
 
@@ -540,7 +670,7 @@ function renderSection(active: Section, props: ViewProps) {
   }
 }
 
-function HomeView({ t, data, money, openQuick, setData }: ViewProps) {
+function HomeView({ t, data, money, openQuick, deleteItem, setData }: ViewProps) {
   const income = data.movements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
   const expenses = data.movements.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
   const balance = income - expenses;
@@ -560,11 +690,11 @@ function HomeView({ t, data, money, openQuick, setData }: ViewProps) {
         <div className="hero-stats">
           <Metric icon={WalletCards} label={t.labels.available} value={money.format(balance)} />
           <Metric icon={CheckCircle2} label={t.labels.pending} value={String(data.tasks.length)} />
-          <Metric icon={Flame} label={t.labels.habits} value={`${data.habits.filter((habit) => habit.done).length}/${data.habits.length}`} />
+          <Metric icon={Flame} label={t.labels.habits} value={`${data.habits.filter((habit) => habit.history.includes(todayKey())).length}/${data.habits.length}`} />
         </div>
       </section>
       <Panel title={t.labels.priorities} icon={Target} viewLabel={t.view} className="span-4">
-        <TaskList t={t} tasks={data.tasks.slice(0, 4)} setData={setData} emptyType="task" openQuick={openQuick} />
+        <TaskList t={t} tasks={data.tasks.slice(0, 4)} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
       <Panel title={t.labels.monthFinance} icon={CircleDollarSign} viewLabel={t.view} className="span-4">
         <MetricRow label={t.labels.income} value={money.format(income)} positive />
@@ -572,19 +702,19 @@ function HomeView({ t, data, money, openQuick, setData }: ViewProps) {
         <MetricRow label={t.labels.plannedSavings} value={money.format(balance)} positive={balance >= 0} />
       </Panel>
       <Panel title={t.labels.academicTasks} icon={BookOpen} viewLabel={t.view} className="span-4">
-        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "estudios").slice(0, 3)} setData={setData} emptyType="studyTask" openQuick={openQuick} />
+        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "estudios").slice(0, 3)} setData={setData} emptyType="studyTask" openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
       <Panel title={t.labels.habits} icon={Flame} viewLabel={t.view} className="span-4">
-        <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} />
+        <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
       <Panel title={t.labels.todayAgenda} icon={CalendarDays} viewLabel={t.view} className="span-12">
-        <EventList t={t} events={data.events} openQuick={openQuick} />
+        <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
     </>
   );
 }
 
-function FinanceView({ t, data, money, openQuick }: ViewProps) {
+function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
   const income = data.movements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
   const expenses = data.movements.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
   const balance = income - expenses;
@@ -597,48 +727,51 @@ function FinanceView({ t, data, money, openQuick }: ViewProps) {
         <MetricRow label={t.labels.averageDailySpend} value={money.format(averageExpense)} />
         <MetricRow label={t.labels.savingsGoal} value={String(data.goals.length)} positive />
       </Panel>
-      <Panel title={t.labels.recentMovements} icon={CircleDollarSign} viewLabel={t.view} className="span-8">
-        <MovementList t={t} movements={data.movements} money={money} openQuick={openQuick} />
+      <Panel title={t.labels.budgets} icon={Target} viewLabel={t.view} className="span-8">
+        <BudgetList t={t} budgets={data.budgets} movements={data.movements} money={money} openQuick={openQuick} deleteItem={deleteItem} />
+      </Panel>
+      <Panel title={t.labels.recentMovements} icon={CircleDollarSign} viewLabel={t.view} className="span-12">
+        <MovementList t={t} movements={data.movements} money={money} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
     </>
   );
 }
 
-function StudyView({ t, data, openQuick, setData }: ViewProps) {
+function StudyView({ t, data, openQuick, deleteItem, setData }: ViewProps) {
   return (
     <>
       <Panel title={t.labels.subjects} icon={GraduationCap} viewLabel={t.view} className="span-5">
         <EmptyState t={t} type="studyTask" openQuick={openQuick} />
       </Panel>
       <Panel title={t.labels.academicTasks} icon={BookOpen} viewLabel={t.view} className="span-7">
-        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "estudios")} setData={setData} emptyType="studyTask" openQuick={openQuick} />
+        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "estudios")} setData={setData} emptyType="studyTask" openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
     </>
   );
 }
 
-function DayView({ t, data, openQuick, setData }: ViewProps) {
+function DayView({ t, data, openQuick, deleteItem, setData }: ViewProps) {
   return (
     <>
       <Panel title={t.labels.todayTasks} icon={ListTodo} viewLabel={t.view} className="span-7">
-        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "dia")} setData={setData} emptyType="task" openQuick={openQuick} />
+        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "dia")} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
       <Panel title={t.labels.habits} icon={Flame} viewLabel={t.view} className="span-5">
-        <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} />
+        <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
     </>
   );
 }
 
-function CalendarView({ t, data, openQuick }: ViewProps) {
+function CalendarView({ t, data, openQuick, deleteItem }: ViewProps) {
   return (
     <Panel title={t.labels.todayAgenda} icon={Clock3} viewLabel={t.view} className="span-12">
-      <EventList t={t} events={data.events} openQuick={openQuick} />
+      <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
     </Panel>
   );
 }
 
-function GoalsView({ t, data, openQuick }: ViewProps) {
+function GoalsView({ t, data, openQuick, deleteItem }: ViewProps) {
   if (!data.goals.length) {
     return (
       <Panel title={t.labels.goals} icon={Target} viewLabel={t.view} className="span-12">
@@ -653,6 +786,12 @@ function GoalsView({ t, data, openQuick }: ViewProps) {
         <Panel title={goal.area} icon={Target} viewLabel={t.view} className="span-4" key={goal.id}>
           <ProgressRing value={goal.progress} label={goal.title} />
           <p className="goal-target">{goal.target}</p>
+          <ItemActions
+            editLabel={t.edit}
+            deleteLabel={t.delete}
+            onEdit={() => openQuick("goal", goal.id)}
+            onDelete={() => deleteItem("goal", goal.id)}
+          />
         </Panel>
       ))}
     </>
@@ -711,12 +850,14 @@ function TaskList({
   setData,
   emptyType,
   openQuick,
+  deleteItem,
 }: {
   t: (typeof copy)[Lang];
   tasks: Task[];
   setData: Dispatch<SetStateAction<AppData>>;
   emptyType: QuickType;
-  openQuick: (type?: QuickType) => void;
+  openQuick: (type?: QuickType, id?: string) => void;
+  deleteItem: (type: QuickType, id: string) => void;
 }) {
   if (!tasks.length) return <EmptyState t={t} type={emptyType} openQuick={openQuick} />;
 
@@ -740,13 +881,31 @@ function TaskList({
             </span>
           </div>
           <PriorityPill label={t.priorities[task.priority]} value={task.priority} />
+          <ItemActions
+            editLabel={t.edit}
+            deleteLabel={t.delete}
+            onEdit={() => openQuick(task.areaKey === "estudios" ? "studyTask" : "task", task.id)}
+            onDelete={() => deleteItem(task.areaKey === "estudios" ? "studyTask" : "task", task.id)}
+          />
         </div>
       ))}
     </div>
   );
 }
 
-function MovementList({ t, movements, money, openQuick }: { t: (typeof copy)[Lang]; movements: Movement[]; money: Intl.NumberFormat; openQuick: (type?: QuickType) => void }) {
+function MovementList({
+  t,
+  movements,
+  money,
+  openQuick,
+  deleteItem,
+}: {
+  t: (typeof copy)[Lang];
+  movements: Movement[];
+  money: Intl.NumberFormat;
+  openQuick: (type?: QuickType, id?: string) => void;
+  deleteItem: (type: QuickType, id: string) => void;
+}) {
   if (!movements.length) return <EmptyState t={t} type="expense" openQuick={openQuick} />;
 
   return (
@@ -762,8 +921,66 @@ function MovementList({ t, movements, money, openQuick }: { t: (typeof copy)[Lan
             {movement.type === "income" ? "+" : "-"}
             {money.format(movement.amount)}
           </b>
+          <ItemActions
+            editLabel={t.edit}
+            deleteLabel={t.delete}
+            onEdit={() => openQuick(movement.type, movement.id)}
+            onDelete={() => deleteItem(movement.type, movement.id)}
+          />
         </div>
       ))}
+    </div>
+  );
+}
+
+function BudgetList({
+  t,
+  budgets,
+  movements,
+  money,
+  openQuick,
+  deleteItem,
+}: {
+  t: (typeof copy)[Lang];
+  budgets: Budget[];
+  movements: Movement[];
+  money: Intl.NumberFormat;
+  openQuick: (type?: QuickType, id?: string) => void;
+  deleteItem: (type: QuickType, id: string) => void;
+}) {
+  if (!budgets.length) return <EmptyState t={t} type="budget" openQuick={openQuick} />;
+
+  return (
+    <div className="budget-list">
+      {budgets.map((budget) => {
+        const spent = movements
+          .filter((movement) => movement.type === "expense" && movement.category.toLowerCase() === budget.category.toLowerCase())
+          .reduce((sum, movement) => sum + movement.amount, 0);
+        const progress = budget.monthlyLimit > 0 ? Math.min(100, Math.round((spent / budget.monthlyLimit) * 100)) : 0;
+        const remaining = budget.monthlyLimit - spent;
+
+        return (
+          <div className="budget-item" key={budget.id}>
+            <div className="budget-topline">
+              <div>
+                <strong>{budget.category}</strong>
+                <span>
+                  {t.labels.spent}: {money.format(spent)} · {remaining >= 0 ? t.labels.remaining : t.labels.overBudget}: {money.format(Math.abs(remaining))}
+                </span>
+              </div>
+              <ItemActions
+                editLabel={t.edit}
+                deleteLabel={t.delete}
+                onEdit={() => openQuick("budget", budget.id)}
+                onDelete={() => deleteItem("budget", budget.id)}
+              />
+            </div>
+            <div className="progress-track">
+              <span style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -773,41 +990,71 @@ function HabitGrid({
   habits,
   setData,
   openQuick,
+  deleteItem,
 }: {
   t: (typeof copy)[Lang];
   habits: Habit[];
   setData: Dispatch<SetStateAction<AppData>>;
-  openQuick: (type?: QuickType) => void;
+  openQuick: (type?: QuickType, id?: string) => void;
+  deleteItem: (type: QuickType, id: string) => void;
 }) {
   if (!habits.length) return <EmptyState t={t} type="habit" openQuick={openQuick} />;
 
   return (
     <div className="habit-grid">
       {habits.map((habit) => (
-        <button
-          className={habit.done ? "done" : ""}
+        <div
+          className={`habit-card ${habit.history.includes(todayKey()) ? "done" : ""}`}
           key={habit.id}
-          onClick={() =>
-            setData((current) => ({
-              ...current,
-              habits: current.habits.map((item) =>
-                item.id === habit.id ? { ...item, done: !item.done, streak: item.done ? Math.max(0, item.streak - 1) : item.streak + 1 } : item,
-              ),
-            }))
-          }
         >
           <CheckCircle2 size={18} />
           <strong>{habit.name}</strong>
           <span>
-            {habit.streak} {t.days}
+            {t.frequencies[habit.frequency]} · {habit.history.length} {t.days}
           </span>
-        </button>
+          <span>{t.streakHistory}: {habit.history.slice(-4).join(", ") || t.noDate}</span>
+          <div className="habit-actions">
+            <button
+              className="ghost-button"
+              onClick={() =>
+                setData((current) => ({
+                  ...current,
+                  habits: current.habits.map((item) => {
+                    if (item.id !== habit.id) return item;
+                    const today = todayKey();
+                    const complete = item.history.includes(today);
+                    const history = complete ? item.history.filter((date) => date !== today) : [...item.history, today];
+                    return { ...item, done: !complete, history, streak: history.length };
+                  }),
+                }))
+              }
+            >
+              {habit.history.includes(todayKey()) ? t.completedToday : t.markDone}
+            </button>
+            <ItemActions
+              editLabel={t.edit}
+              deleteLabel={t.delete}
+              onEdit={() => openQuick("habit", habit.id)}
+              onDelete={() => deleteItem("habit", habit.id)}
+            />
+          </div>
+        </div>
       ))}
     </div>
   );
 }
 
-function EventList({ t, events, openQuick }: { t: (typeof copy)[Lang]; events: EventItem[]; openQuick: (type?: QuickType) => void }) {
+function EventList({
+  t,
+  events,
+  openQuick,
+  deleteItem,
+}: {
+  t: (typeof copy)[Lang];
+  events: EventItem[];
+  openQuick: (type?: QuickType, id?: string) => void;
+  deleteItem: (type: QuickType, id: string) => void;
+}) {
   if (!events.length) return <EmptyState t={t} type="event" openQuick={openQuick} />;
 
   return (
@@ -822,13 +1069,19 @@ function EventList({ t, events, openQuick }: { t: (typeof copy)[Lang]; events: E
               {event.time ? ` · ${event.time}` : ""}
             </span>
           </div>
+          <ItemActions
+            editLabel={t.edit}
+            deleteLabel={t.delete}
+            onEdit={() => openQuick("event", event.id)}
+            onDelete={() => deleteItem("event", event.id)}
+          />
         </div>
       ))}
     </div>
   );
 }
 
-function EmptyState({ t, type, openQuick }: { t: (typeof copy)[Lang]; type: QuickType; openQuick: (type?: QuickType) => void }) {
+function EmptyState({ t, type, openQuick }: { t: (typeof copy)[Lang]; type: QuickType; openQuick: (type?: QuickType, id?: string) => void }) {
   return (
     <div className="empty-state">
       <strong>{t.empty.title}</strong>
@@ -836,6 +1089,29 @@ function EmptyState({ t, type, openQuick }: { t: (typeof copy)[Lang]; type: Quic
       <button className="ghost-button" onClick={() => openQuick(type)}>
         <Plus size={16} />
         {t.empty.cta}
+      </button>
+    </div>
+  );
+}
+
+function ItemActions({
+  editLabel,
+  deleteLabel,
+  onEdit,
+  onDelete,
+}: {
+  editLabel: string;
+  deleteLabel: string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="item-actions">
+      <button className="icon-button small" onClick={onEdit} aria-label={editLabel}>
+        <Edit3 size={15} />
+      </button>
+      <button className="icon-button small danger" onClick={onDelete} aria-label={deleteLabel}>
+        <Trash2 size={15} />
       </button>
     </div>
   );
@@ -861,22 +1137,27 @@ function ProgressRing({ value, label }: { value: number; label: string }) {
 function QuickAdd({
   type,
   t,
+  editingItem,
+  isEditing,
   onSelect,
-  onAdd,
+  onSave,
   onClose,
 }: {
   type: QuickType;
   t: (typeof copy)[Lang];
+  editingItem: ReturnType<typeof findItem>;
+  isEditing: boolean;
   onSelect: (type: QuickType) => void;
-  onAdd: (type: QuickType, payload: Record<string, FormDataEntryValue>) => void;
+  onSave: (type: QuickType, payload: Record<string, FormDataEntryValue>) => void;
   onClose: () => void;
 }) {
   const typeLabels = t.quick;
+  const values = formValuesFor(type, editingItem);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    onAdd(type, Object.fromEntries(formData));
+    onSave(type, Object.fromEntries(formData));
     onClose();
   }
 
@@ -889,39 +1170,47 @@ function QuickAdd({
             <X size={19} />
           </button>
         </header>
-        <div className="quick-grid type-picker">
-          {(Object.keys(typeLabels) as QuickType[]).map((item) => (
-            <button className={type === item ? "selected" : ""} key={item} onClick={() => onSelect(item)}>
-              {typeLabels[item]}
-            </button>
-          ))}
-        </div>
+        {!isEditing && (
+          <div className="quick-grid type-picker">
+            {(Object.keys(typeLabels) as QuickType[]).map((item) => (
+              <button className={type === item ? "selected" : ""} key={item} onClick={() => onSelect(item)}>
+                {typeLabels[item]}
+              </button>
+            ))}
+          </div>
+        )}
         <form className="quick-form" onSubmit={handleSubmit}>
           <label>
             <span>{t.title}</span>
-            <input name="title" required placeholder={placeholderFor(type, t)} />
+            <input name="title" required placeholder={placeholderFor(type, t)} defaultValue={values.title} />
           </label>
           {(type === "income" || type === "expense") && (
             <>
               <label>
                 <span>{t.amount}</span>
-                <input name="amount" type="number" min="0" step="0.01" required placeholder={t.placeholders.amount} />
+                <input name="amount" type="number" min="0" step="0.01" required placeholder={t.placeholders.amount} defaultValue={values.amount} />
               </label>
               <label>
                 <span>{t.category}</span>
-                <input name="category" placeholder={t.placeholders.category} />
+                <input name="category" placeholder={t.placeholders.category} defaultValue={values.category} />
               </label>
             </>
+          )}
+          {type === "budget" && (
+            <label>
+              <span>{t.monthlyLimit}</span>
+              <input name="amount" type="number" min="0" step="0.01" required placeholder={t.placeholders.amount} defaultValue={values.amount} />
+            </label>
           )}
           {(type === "task" || type === "studyTask") && (
             <>
               <label>
                 <span>{t.time}</span>
-                <input name="time" type="time" />
+                <input name="time" type="time" defaultValue={values.time} />
               </label>
               <label>
                 <span>{t.progress}</span>
-                <select name="priority" defaultValue="medium">
+                <select name="priority" defaultValue={values.priority || "medium"}>
                   <option value="high">{t.priorities.high}</option>
                   <option value="medium">{t.priorities.medium}</option>
                   <option value="low">{t.priorities.low}</option>
@@ -929,15 +1218,25 @@ function QuickAdd({
               </label>
             </>
           )}
+          {type === "habit" && (
+            <label>
+              <span>{t.frequency}</span>
+              <select name="frequency" defaultValue={values.frequency || "daily"}>
+                <option value="daily">{t.frequencies.daily}</option>
+                <option value="weekly">{t.frequencies.weekly}</option>
+                <option value="monthly">{t.frequencies.monthly}</option>
+              </select>
+            </label>
+          )}
           {type === "event" && (
             <>
               <label>
                 <span>{t.dateLabel}</span>
-                <input name="date" type="date" />
+                <input name="date" type="date" defaultValue={values.date} />
               </label>
               <label>
                 <span>{t.time}</span>
-                <input name="time" type="time" />
+                <input name="time" type="time" defaultValue={values.time} />
               </label>
             </>
           )}
@@ -945,15 +1244,15 @@ function QuickAdd({
             <>
               <label>
                 <span>{t.area}</span>
-                <input name="area" placeholder={t.placeholders.area} />
+                <input name="area" placeholder={t.placeholders.area} defaultValue={values.area} />
               </label>
               <label>
                 <span>{t.target}</span>
-                <input name="target" placeholder={t.placeholders.target} />
+                <input name="target" placeholder={t.placeholders.target} defaultValue={values.target} />
               </label>
               <label>
                 <span>{t.progress}</span>
-                <input name="progress" type="number" min="0" max="100" placeholder="0" />
+                <input name="progress" type="number" min="0" max="100" placeholder="0" defaultValue={values.progress} />
               </label>
             </>
           )}
@@ -972,10 +1271,37 @@ function QuickAdd({
 }
 
 function placeholderFor(type: QuickType, t: (typeof copy)[Lang]) {
+  if (type === "budget") return t.placeholders.budget;
   if (type === "habit") return t.placeholders.habit;
   if (type === "event") return t.placeholders.event;
   if (type === "goal") return t.placeholders.goal;
   return t.placeholders.task;
+}
+
+function formValuesFor(type: QuickType, item: ReturnType<typeof findItem>) {
+  if (!item) return {};
+  if (type === "income" || type === "expense") {
+    const movement = item as Movement;
+    return { title: movement.title, category: movement.category, amount: String(movement.amount) };
+  }
+  if (type === "budget") {
+    const budget = item as Budget;
+    return { title: budget.category, amount: String(budget.monthlyLimit) };
+  }
+  if (type === "habit") {
+    const habit = item as Habit;
+    return { title: habit.name, frequency: habit.frequency };
+  }
+  if (type === "event") {
+    const event = item as EventItem;
+    return { title: event.title, date: event.date, time: event.time };
+  }
+  if (type === "goal") {
+    const goal = item as Goal;
+    return { title: goal.title, area: goal.area, target: goal.target, progress: String(goal.progress) };
+  }
+  const task = item as Task;
+  return { title: task.title, time: task.time, priority: task.priority };
 }
 
 export default App;
