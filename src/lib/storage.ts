@@ -67,6 +67,10 @@ export function saveData(data: AppData) {
   localStorage.setItem(DATA_KEY, JSON.stringify(data));
 }
 
+export function clearLocalData() {
+  localStorage.removeItem(DATA_KEY);
+}
+
 export function parseImportedData(value: string) {
   const parsed = JSON.parse(value);
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
