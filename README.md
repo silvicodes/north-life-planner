@@ -109,6 +109,12 @@ Preview the production build:
 npm run preview
 ```
 
+Run the Supabase end-to-end sync test:
+
+```bash
+npm run test:supabase:e2e
+```
+
 ## Project Structure
 
 ```txt
@@ -181,6 +187,25 @@ with check (auth.uid() = user_id);
 ```
 
 Without these environment variables, North stays fully usable in local mode.
+
+### Supabase End-to-End Test
+
+To verify the full cloud sync flow, add a real test account to your local `.env` file:
+
+```bash
+SUPABASE_E2E_EMAIL=your-test-user@example.com
+SUPABASE_E2E_PASSWORD=your-test-password
+```
+
+Then run:
+
+```bash
+npm run test:supabase:e2e
+```
+
+The test creates or signs into the test account, adds sample North data, simulates a reload, signs out, signs back in, confirms the data is synced from Supabase, and restores the previous data afterwards.
+
+If Supabase requires email confirmation, confirm the test account email first and run the command again.
 
 ## Responsive Design
 
