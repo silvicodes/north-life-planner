@@ -5,7 +5,6 @@ import {
   CircleDollarSign,
   Clock3,
   Download,
-  Edit3,
   Flame,
   Globe2,
   GraduationCap,
@@ -19,13 +18,12 @@ import {
   Sparkles,
   Sun,
   Target,
-  Trash2,
   Upload,
   WalletCards,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Dispatch, FormEvent, ReactNode, SetStateAction } from "react";
+import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { addDays, dateKey, formatToday, monthGridDays, startOfWeek, todayKey } from "./lib/date";
 import { clearLocalData, findItem, LANG_KEY, loadData, parseImportedData, saveData, THEME_KEY } from "./lib/storage";
 import { isSupabaseConfigured, loadCloudData, saveCloudData, supabase } from "./lib/supabase";
@@ -48,6 +46,9 @@ import type {
 } from "./types";
 import { copy } from "./i18n/copy";
 import type { User } from "@supabase/supabase-js";
+import { ConfirmDialog, EmptyState, ItemActions, Metric, MetricRow, Panel, PriorityPill, ProgressRing } from "./components/common";
+import { Onboarding } from "./components/Onboarding";
+import { QuickAdd } from "./components/QuickAdd";
 
 const icons = {
   inicio: Home,
@@ -67,6 +68,10 @@ type SyncStatus = "local" | "loading" | "synced" | "saving" | "error";
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function isAppEmpty(data: AppData) {
+  return Object.values(data).every((items) => items.length === 0);
 }
 
 function App() {
@@ -580,6 +585,7 @@ function HomeView({
   const income = data.movements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
   const expenses = data.movements.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
   const balance = income - expenses;
+  const appEmpty = isAppEmpty(data);
 
   return (
     <>
@@ -599,23 +605,29 @@ function HomeView({
           <Metric icon={Flame} label={t.labels.habits} value={`${data.habits.filter((habit) => habit.history.includes(todayKey())).length}/${data.habits.length}`} />
         </div>
       </section>
-      <Panel title={t.labels.priorities} icon={Target} viewLabel={t.view} className="span-4">
-        <TaskList t={t} tasks={data.tasks.slice(0, 4)} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
-      </Panel>
-      <Panel title={t.labels.monthFinance} icon={CircleDollarSign} viewLabel={t.view} className="span-4">
-        <MetricRow label={t.labels.income} value={money.format(income)} positive />
-        <MetricRow label={t.labels.expenses} value={money.format(expenses)} />
-        <MetricRow label={t.labels.plannedSavings} value={money.format(balance)} positive={balance >= 0} />
-      </Panel>
-      <Panel title={t.labels.academicTasks} icon={BookOpen} viewLabel={t.view} className="span-4">
-        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "estudios").slice(0, 3)} setData={setData} emptyType="studyTask" openQuick={openQuick} deleteItem={deleteItem} />
-      </Panel>
-      <Panel title={t.labels.habits} icon={Flame} viewLabel={t.view} className="span-4">
-        <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} deleteItem={deleteItem} />
-      </Panel>
-      <Panel title={t.labels.todayAgenda} icon={CalendarDays} viewLabel={t.view} className="span-12">
-        <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
-      </Panel>
+      {appEmpty ? (
+        <Onboarding t={t} openQuick={openQuick} />
+      ) : (
+        <>
+          <Panel title={t.labels.priorities} icon={Target} viewLabel={t.view} className="span-4">
+            <TaskList t={t} tasks={data.tasks.slice(0, 4)} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
+          </Panel>
+          <Panel title={t.labels.monthFinance} icon={CircleDollarSign} viewLabel={t.view} className="span-4">
+            <MetricRow label={t.labels.income} value={money.format(income)} positive />
+            <MetricRow label={t.labels.expenses} value={money.format(expenses)} />
+            <MetricRow label={t.labels.plannedSavings} value={money.format(balance)} positive={balance >= 0} />
+          </Panel>
+          <Panel title={t.labels.academicTasks} icon={BookOpen} viewLabel={t.view} className="span-4">
+            <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "estudios").slice(0, 3)} setData={setData} emptyType="studyTask" openQuick={openQuick} deleteItem={deleteItem} />
+          </Panel>
+          <Panel title={t.labels.habits} icon={Flame} viewLabel={t.view} className="span-4">
+            <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} deleteItem={deleteItem} />
+          </Panel>
+          <Panel title={t.labels.todayAgenda} icon={CalendarDays} viewLabel={t.view} className="span-12">
+            <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
+          </Panel>
+        </>
+      )}
       <Panel title={t.cloudSync} icon={Sparkles} viewLabel={t.view} className="span-12">
         <AuthPanel
           t={t}
@@ -800,52 +812,6 @@ function GoalsView({ t, data, openQuick, deleteItem }: ViewProps) {
         </Panel>
       ))}
     </>
-  );
-}
-
-function Panel({
-  title,
-  icon: Icon,
-  viewLabel,
-  className = "",
-  children,
-}: {
-  title: string;
-  icon: typeof Home;
-  viewLabel: string;
-  className?: string;
-  children: ReactNode;
-}) {
-  return (
-    <article className={`panel ${className}`}>
-      <header className="panel-header">
-        <div>
-          <Icon size={18} />
-          <h2>{title}</h2>
-        </div>
-        <button className="ghost-button">{viewLabel}</button>
-      </header>
-      {children}
-    </article>
-  );
-}
-
-function Metric({ icon: Icon, label, value }: { icon: typeof Home; label: string; value: string }) {
-  return (
-    <div className="metric">
-      <Icon size={20} />
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function MetricRow({ label, value, positive }: { label: string; value: string; positive?: boolean }) {
-  return (
-    <div className="metric-row">
-      <span>{label}</span>
-      <strong className={positive ? "positive" : ""}>{value}</strong>
-    </div>
   );
 }
 
@@ -1346,262 +1312,6 @@ function EventList({
       ))}
     </div>
   );
-}
-
-function EmptyState({ t, type, openQuick, message }: { t: (typeof copy)[Lang]; type: QuickType; openQuick: (type?: QuickType, id?: string) => void; message?: string }) {
-  return (
-    <div className="empty-state">
-      <strong>{t.empty.title}</strong>
-      <span>{message ?? t.empty.body}</span>
-      <button className="ghost-button" onClick={() => openQuick(type)}>
-        <Plus size={16} />
-        {t.empty.cta}
-      </button>
-    </div>
-  );
-}
-
-function ItemActions({
-  editLabel,
-  deleteLabel,
-  onEdit,
-  onDelete,
-}: {
-  editLabel: string;
-  deleteLabel: string;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  return (
-    <div className="item-actions">
-      <button className="icon-button small" onClick={onEdit} aria-label={editLabel}>
-        <Edit3 size={15} />
-      </button>
-      <button className="icon-button small danger" onClick={onDelete} aria-label={deleteLabel}>
-        <Trash2 size={15} />
-      </button>
-    </div>
-  );
-}
-
-function ConfirmDialog({
-  title,
-  body,
-  cancelLabel,
-  confirmLabel,
-  onCancel,
-  onConfirm,
-}: {
-  title: string;
-  body: string;
-  cancelLabel: string;
-  confirmLabel: string;
-  onCancel: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <div className="modal-layer" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
-      <div className="confirm-modal">
-        <h2 id="confirm-title">{title}</h2>
-        <p>{body}</p>
-        <div className="form-actions">
-          <button type="button" className="ghost-button" onClick={onCancel}>
-            {cancelLabel}
-          </button>
-          <button type="button" className="primary-button danger" onClick={onConfirm}>
-            {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PriorityPill({ value, label }: { value: PriorityKey; label: string }) {
-  return <span className={`priority ${value}`}>{label}</span>;
-}
-
-function ProgressRing({ value, label }: { value: number; label: string }) {
-  return (
-    <div className="ring-wrap">
-      <div className="ring" style={{ background: `conic-gradient(var(--accent) ${value * 3.6}deg, var(--ring-track) 0deg)` }}>
-        <div>
-          <strong>{value}%</strong>
-          <span>{label}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function QuickAdd({
-  type,
-  t,
-  editingItem,
-  isEditing,
-  onSelect,
-  onSave,
-  onClose,
-}: {
-  type: QuickType;
-  t: (typeof copy)[Lang];
-  editingItem: ReturnType<typeof findItem>;
-  isEditing: boolean;
-  onSelect: (type: QuickType) => void;
-  onSave: (type: QuickType, payload: Record<string, FormDataEntryValue>) => void;
-  onClose: () => void;
-}) {
-  const typeLabels = t.quick;
-  const values = formValuesFor(type, editingItem);
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    onSave(type, Object.fromEntries(formData));
-    onClose();
-  }
-
-  return (
-    <div className="modal-layer" role="dialog" aria-modal="true" aria-labelledby="quick-title">
-      <div className="quick-modal">
-        <header>
-          <h2 id="quick-title">{t.addQuick}</h2>
-          <button className="icon-button" onClick={onClose} aria-label={t.closeMenu}>
-            <X size={19} />
-          </button>
-        </header>
-        {!isEditing && (
-          <div className="quick-grid type-picker">
-            {(Object.keys(typeLabels) as QuickType[]).map((item) => (
-              <button className={type === item ? "selected" : ""} key={item} onClick={() => onSelect(item)}>
-                {typeLabels[item]}
-              </button>
-            ))}
-          </div>
-        )}
-        <form className="quick-form" onSubmit={handleSubmit}>
-          <label>
-            <span>{t.title}</span>
-            <input name="title" required placeholder={placeholderFor(type, t)} defaultValue={values.title} />
-          </label>
-          {(type === "income" || type === "expense") && (
-            <>
-              <label>
-                <span>{t.amount}</span>
-                <input name="amount" type="number" min="0" step="0.01" required placeholder={t.placeholders.amount} defaultValue={values.amount} />
-              </label>
-              <label>
-                <span>{t.category}</span>
-                <input name="category" placeholder={t.placeholders.category} defaultValue={values.category} />
-              </label>
-            </>
-          )}
-          {type === "budget" && (
-            <label>
-              <span>{t.monthlyLimit}</span>
-              <input name="amount" type="number" min="0" step="0.01" required placeholder={t.placeholders.amount} defaultValue={values.amount} />
-            </label>
-          )}
-          {(type === "task" || type === "studyTask") && (
-            <>
-              <label>
-                <span>{t.time}</span>
-                <input name="time" type="time" defaultValue={values.time} />
-              </label>
-              <label>
-                <span>{t.progress}</span>
-                <select name="priority" defaultValue={values.priority || "medium"}>
-                  <option value="high">{t.priorities.high}</option>
-                  <option value="medium">{t.priorities.medium}</option>
-                  <option value="low">{t.priorities.low}</option>
-                </select>
-              </label>
-            </>
-          )}
-          {type === "habit" && (
-            <label>
-              <span>{t.frequency}</span>
-              <select name="frequency" defaultValue={values.frequency || "daily"}>
-                <option value="daily">{t.frequencies.daily}</option>
-                <option value="weekly">{t.frequencies.weekly}</option>
-                <option value="monthly">{t.frequencies.monthly}</option>
-              </select>
-            </label>
-          )}
-          {type === "event" && (
-            <>
-              <label>
-                <span>{t.dateLabel}</span>
-                <input name="date" type="date" defaultValue={values.date} />
-              </label>
-              <label>
-                <span>{t.time}</span>
-                <input name="time" type="time" defaultValue={values.time} />
-              </label>
-            </>
-          )}
-          {type === "goal" && (
-            <>
-              <label>
-                <span>{t.area}</span>
-                <input name="area" placeholder={t.placeholders.area} defaultValue={values.area} />
-              </label>
-              <label>
-                <span>{t.target}</span>
-                <input name="target" placeholder={t.placeholders.target} defaultValue={values.target} />
-              </label>
-              <label>
-                <span>{t.progress}</span>
-                <input name="progress" type="number" min="0" max="100" placeholder="0" defaultValue={values.progress} />
-              </label>
-            </>
-          )}
-          <div className="form-actions">
-            <button type="button" className="ghost-button" onClick={onClose}>
-              {t.cancel}
-            </button>
-            <button type="submit" className="primary-button">
-              {t.save}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function placeholderFor(type: QuickType, t: (typeof copy)[Lang]) {
-  if (type === "budget") return t.placeholders.budget;
-  if (type === "habit") return t.placeholders.habit;
-  if (type === "event") return t.placeholders.event;
-  if (type === "goal") return t.placeholders.goal;
-  return t.placeholders.task;
-}
-
-function formValuesFor(type: QuickType, item: ReturnType<typeof findItem>) {
-  if (!item) return {};
-  if (type === "income" || type === "expense") {
-    const movement = item as Movement;
-    return { title: movement.title, category: movement.category, amount: String(movement.amount) };
-  }
-  if (type === "budget") {
-    const budget = item as Budget;
-    return { title: budget.category, amount: String(budget.monthlyLimit) };
-  }
-  if (type === "habit") {
-    const habit = item as Habit;
-    return { title: habit.name, frequency: habit.frequency };
-  }
-  if (type === "event") {
-    const event = item as EventItem;
-    return { title: event.title, date: event.date, time: event.time };
-  }
-  if (type === "goal") {
-    const goal = item as Goal;
-    return { title: goal.title, area: goal.area, target: goal.target, progress: String(goal.progress) };
-  }
-  const task = item as Task;
-  return { title: task.title, time: task.time, priority: task.priority };
 }
 
 export default App;
