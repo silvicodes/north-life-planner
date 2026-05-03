@@ -5,6 +5,7 @@ export type PriorityKey = "high" | "medium" | "low";
 export type Frequency = "daily" | "weekly" | "monthly";
 export type CalendarMode = "day" | "week" | "month";
 export type QuickType = "expense" | "income" | "studyTask" | "task" | "habit" | "event" | "goal" | "budget";
+export type ExpenseKind = "individual" | "shared";
 
 export type Task = {
   id: string;
@@ -20,6 +21,10 @@ export type Movement = {
   category: string;
   amount: number;
   type: "income" | "expense";
+  date: string;
+  expenseKind?: ExpenseKind;
+  sharedWith?: string;
+  ownerSharePercent?: number;
 };
 
 export type Habit = {

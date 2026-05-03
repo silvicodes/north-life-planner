@@ -1,7 +1,9 @@
-import { X } from "lucide-react";
+import { ReceiptText, User, Users, X } from "lucide-react";
+import { useState } from "react";
 import type { FormEvent } from "react";
 import type { Copy } from "../i18n/copy";
-import type { Budget, EventItem, Goal, Habit, Movement, QuickType, Task } from "../types";
+import { todayKey } from "../lib/date";
+import type { Budget, EventItem, ExpenseKind, Goal, Habit, Movement, QuickType, Task } from "../types";
 
 type EditableItem = Budget | EventItem | Goal | Habit | Movement | Task | null;
 
@@ -24,24 +26,65 @@ export function QuickAdd({
 }) {
   const typeLabels = t.quick;
   const values = formValuesFor(type, editingItem);
+  const [expenseKind, setExpenseKind] = useState<ExpenseKind>((values.expenseKind as ExpenseKind) || "individual");
+  const [amountValue, setAmountValue] = useState(values.amount || "");
+  const [ownerShareValue, setOwnerShareValue] = useState(values.ownerSharePercent || "50");
+  const [formError, setFormError] = useState("");
+  const amountNumber = Number(amountValue) || 0;
+  const ownerShareNumber = Number(ownerShareValue) || 0;
+  const ownerAmount = amountNumber * (ownerShareNumber / 100);
+  const otherAmount = Math.max(0, amountNumber - ownerAmount);
+  const isExpense = type === "expense";
+  const showTypePicker = !isEditing && !isExpense;
+  const modalTitle = isExpense ? (isEditing ? t.editExpense : t.addExpense) : t.addQuick;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    onSave(type, Object.fromEntries(formData));
+    const payload = Object.fromEntries(formData);
+    const amount = Number(payload.amount);
+    const title = String(payload.title || "").trim();
+    const category = String(payload.category || "").trim();
+    const date = String(payload.date || "").trim();
+
+    if ((type === "income" || type === "expense") && (!title || !category || !date || !Number.isFinite(amount) || amount <= 0)) {
+      setFormError(t.validation.expense);
+      return;
+    }
+
+    if (type === "expense" && payload.expenseKind === "shared") {
+      const sharedWith = String(payload.sharedWith || "").trim();
+      const ownerSharePercent = Number(payload.ownerSharePercent);
+      if (!sharedWith || !Number.isFinite(ownerSharePercent) || ownerSharePercent <= 0 || ownerSharePercent >= 100) {
+        setFormError(t.validation.sharedExpense);
+        return;
+      }
+    }
+
+    onSave(type, payload);
     onClose();
   }
 
   return (
     <div className="modal-layer" role="dialog" aria-modal="true" aria-labelledby="quick-title">
-      <div className="quick-modal">
+      <div className={`quick-modal ${isExpense ? "expense-modal" : ""}`}>
         <header>
-          <h2 id="quick-title">{t.addQuick}</h2>
+          <div className="modal-title-block">
+            {isExpense && (
+              <span className="modal-icon">
+                <ReceiptText size={18} />
+              </span>
+            )}
+            <div>
+              <h2 id="quick-title">{modalTitle}</h2>
+              {isExpense && <p>{t.expenseModalBody}</p>}
+            </div>
+          </div>
           <button className="icon-button" onClick={onClose} aria-label={t.closeMenu}>
             <X size={19} />
           </button>
         </header>
-        {!isEditing && (
+        {showTypePicker && (
           <div className="quick-grid type-picker">
             {(Object.keys(typeLabels) as QuickType[]).map((item) => (
               <button className={type === item ? "selected" : ""} key={item} onClick={() => onSelect(item)}>
@@ -50,7 +93,7 @@ export function QuickAdd({
             ))}
           </div>
         )}
-        <form className="quick-form" onSubmit={handleSubmit}>
+        <form className={`quick-form ${isExpense ? "expense-form" : ""}`} onSubmit={handleSubmit}>
           <label>
             <span>{t.title}</span>
             <input name="title" required placeholder={placeholderFor(type, t)} defaultValue={values.title} />
@@ -59,12 +102,77 @@ export function QuickAdd({
             <>
               <label>
                 <span>{t.amount}</span>
-                <input name="amount" type="number" min="0" step="0.01" required placeholder={t.placeholders.amount} defaultValue={values.amount} />
+                <input
+                  name="amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  required
+                  placeholder={t.placeholders.amount}
+                  value={amountValue}
+                  onChange={(event) => setAmountValue(event.target.value)}
+                />
               </label>
               <label>
                 <span>{t.category}</span>
-                <input name="category" placeholder={t.placeholders.category} defaultValue={values.category} />
+                <input name="category" required placeholder={t.placeholders.category} defaultValue={values.category} />
               </label>
+              <label>
+                <span>{t.dateLabel}</span>
+                <input name="date" type="date" required defaultValue={values.date || todayKey()} />
+              </label>
+            </>
+          )}
+          {type === "expense" && (
+            <>
+              <input type="hidden" name="expenseKind" value={expenseKind} />
+              <div className="expense-kind-picker" role="group" aria-label={t.expenseType}>
+                <button type="button" className={expenseKind === "individual" ? "selected" : ""} onClick={() => setExpenseKind("individual")}>
+                  <User size={18} />
+                  <span>{t.expenseKinds.individual}</span>
+                </button>
+                <button type="button" className={expenseKind === "shared" ? "selected" : ""} onClick={() => setExpenseKind("shared")}>
+                  <Users size={18} />
+                  <span>{t.expenseKinds.shared}</span>
+                </button>
+              </div>
+              {expenseKind === "shared" && (
+                <section className="split-section">
+                  <div className="split-section-header">
+                    <strong>{t.splitSectionTitle}</strong>
+                    <span>{t.splitHint}</span>
+                  </div>
+                  <label>
+                    <span>{t.sharedWith}</span>
+                    <input name="sharedWith" required placeholder={t.placeholders.sharedWith} defaultValue={values.sharedWith} />
+                  </label>
+                  <label>
+                    <span>{t.ownerSharePercent}</span>
+                    <input
+                      name="ownerSharePercent"
+                      type="number"
+                      min="1"
+                      max="99"
+                      step="1"
+                      required
+                      value={ownerShareValue}
+                      onChange={(event) => setOwnerShareValue(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>{t.otherSharePercent}</span>
+                    <input value={`${Math.max(0, 100 - ownerShareNumber)}%`} readOnly />
+                  </label>
+                  <div className="split-preview">
+                    <span>
+                      {t.labels.yourShare}: {formatAmount(ownerAmount)}
+                    </span>
+                    <span>
+                      {t.labels.otherShare}: {formatAmount(otherAmount)}
+                    </span>
+                  </div>
+                </section>
+              )}
             </>
           )}
           {type === "budget" && (
@@ -127,6 +235,7 @@ export function QuickAdd({
               </label>
             </>
           )}
+          {formError && <p className="form-error">{formError}</p>}
           <div className="form-actions">
             <button type="button" className="ghost-button" onClick={onClose}>
               {t.cancel}
@@ -141,6 +250,14 @@ export function QuickAdd({
   );
 }
 
+function formatAmount(value: number) {
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function placeholderFor(type: QuickType, t: Copy) {
   if (type === "budget") return t.placeholders.budget;
   if (type === "habit") return t.placeholders.habit;
@@ -153,7 +270,15 @@ function formValuesFor(type: QuickType, item: EditableItem) {
   if (!item) return {};
   if (type === "income" || type === "expense") {
     const movement = item as Movement;
-    return { title: movement.title, category: movement.category, amount: String(movement.amount) };
+    return {
+      title: movement.title,
+      category: movement.category,
+      amount: String(movement.amount),
+      date: movement.date,
+      expenseKind: movement.expenseKind || "individual",
+      sharedWith: movement.sharedWith || "",
+      ownerSharePercent: String(movement.ownerSharePercent ?? 50),
+    };
   }
   if (type === "budget") {
     const budget = item as Budget;

@@ -21,6 +21,10 @@ export function normalizeData(data: Partial<AppData>): AppData {
       category: text(movement.category),
       amount: number(movement.amount),
       type: movement.type === "income" ? "income" : "expense",
+      date: text(movement.date) || todayKey(),
+      expenseKind: movement.expenseKind === "shared" ? "shared" : "individual",
+      sharedWith: text(movement.sharedWith),
+      ownerSharePercent: Math.min(100, Math.max(0, number(movement.ownerSharePercent || 100))),
     })),
     events: ensureArray(data.events).map((event) => ({
       id: text(event.id),
