@@ -92,6 +92,11 @@ select {
   font: inherit;
 }
 
+select {
+  padding-right: 40px;
+  background-position: right 14px center;
+}
+
 button {
   cursor: pointer;
 }
@@ -967,6 +972,10 @@ button {
   background: var(--panel-solid);
 }
 
+.movement-filters select {
+  padding-right: 40px;
+}
+
 .project-summary-grid {
   display: grid;
   gap: 4px;
@@ -987,6 +996,7 @@ button {
   border-radius: 11px;
   color: var(--text);
   background: var(--panel-solid);
+  padding-right: 40px;
 }
 
 .project-list,
@@ -1135,6 +1145,11 @@ button {
   border-radius: 11px;
   color: var(--text);
   background: var(--panel-solid);
+}
+
+.project-task-form select,
+.project-task-actions select {
+  padding-right: 38px;
 }
 
 .project-task-form textarea {
@@ -1776,6 +1791,10 @@ button {
   border-radius: 12px;
   color: var(--text);
   background: var(--surface);
+}
+
+.quick-form select {
+  padding-right: 40px;
 }
 
 .quick-form label:has(input[readonly]) {
