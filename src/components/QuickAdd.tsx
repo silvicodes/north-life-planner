@@ -1,4 +1,4 @@
-import { ReceiptText, User, Users, X } from "lucide-react";
+import { CalendarDays, PiggyBank, ReceiptText, Target, User, Users, X } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import type { Copy } from "../i18n/copy";
@@ -29,14 +29,16 @@ export function QuickAdd({
   const [expenseKind, setExpenseKind] = useState<ExpenseKind>((values.expenseKind as ExpenseKind) || "individual");
   const [amountValue, setAmountValue] = useState(values.amount || "");
   const [ownerShareValue, setOwnerShareValue] = useState(values.ownerSharePercent || "50");
+  const [paidBy, setPaidBy] = useState(values.paidBy || "me");
   const [formError, setFormError] = useState("");
   const amountNumber = Number(amountValue) || 0;
   const ownerShareNumber = Number(ownerShareValue) || 0;
   const ownerAmount = amountNumber * (ownerShareNumber / 100);
   const otherAmount = Math.max(0, amountNumber - ownerAmount);
-  const isExpense = type === "expense";
-  const showTypePicker = !isEditing && !isExpense;
-  const modalTitle = isExpense ? (isEditing ? t.editExpense : t.addExpense) : t.addQuick;
+  const importantType = type === "expense" || type === "budget" || type === "event" || type === "goal";
+  const showTypePicker = !isEditing && !importantType;
+  const modalMeta = modalMetaFor(type, t, isEditing);
+  const ModalIcon = modalMeta.icon;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,17 +69,17 @@ export function QuickAdd({
 
   return (
     <div className="modal-layer" role="dialog" aria-modal="true" aria-labelledby="quick-title">
-      <div className={`quick-modal ${isExpense ? "expense-modal" : ""}`}>
+      <div className={`quick-modal ${importantType ? "context-modal" : ""}`}>
         <header>
           <div className="modal-title-block">
-            {isExpense && (
+            {importantType && (
               <span className="modal-icon">
-                <ReceiptText size={18} />
+                <ModalIcon size={18} />
               </span>
             )}
             <div>
-              <h2 id="quick-title">{modalTitle}</h2>
-              {isExpense && <p>{t.expenseModalBody}</p>}
+              <h2 id="quick-title">{modalMeta.title}</h2>
+              {importantType && <p>{modalMeta.body}</p>}
             </div>
           </div>
           <button className="icon-button" onClick={onClose} aria-label={t.closeMenu}>
@@ -93,7 +95,7 @@ export function QuickAdd({
             ))}
           </div>
         )}
-        <form className={`quick-form ${isExpense ? "expense-form" : ""}`} onSubmit={handleSubmit}>
+        <form className={`quick-form ${importantType ? "context-form" : ""}`} onSubmit={handleSubmit}>
           <label>
             <span>{t.title}</span>
             <input name="title" required placeholder={placeholderFor(type, t)} defaultValue={values.title} />
@@ -146,6 +148,15 @@ export function QuickAdd({
                     <span>{t.sharedWith}</span>
                     <input name="sharedWith" required placeholder={t.placeholders.sharedWith} defaultValue={values.sharedWith} />
                   </label>
+                  <input type="hidden" name="paidBy" value={paidBy} />
+                  <div className="paid-by-picker" role="group" aria-label={t.paidBy}>
+                    <button type="button" className={paidBy === "me" ? "selected" : ""} onClick={() => setPaidBy("me")}>
+                      {t.paidByMe}
+                    </button>
+                    <button type="button" className={paidBy === "other" ? "selected" : ""} onClick={() => setPaidBy("other")}>
+                      {t.paidByOther}
+                    </button>
+                  </div>
                   <label>
                     <span>{t.ownerSharePercent}</span>
                     <input
@@ -258,6 +269,22 @@ function formatAmount(value: number) {
   }).format(value);
 }
 
+function modalMetaFor(type: QuickType, t: Copy, isEditing: boolean) {
+  if (type === "expense") {
+    return { title: isEditing ? t.editExpense : t.addExpense, body: t.expenseModalBody, icon: ReceiptText };
+  }
+  if (type === "budget") {
+    return { title: isEditing ? t.editBudget : t.addBudget, body: t.budgetModalBody, icon: PiggyBank };
+  }
+  if (type === "event") {
+    return { title: isEditing ? t.editEvent : t.addEvent, body: t.eventModalBody, icon: CalendarDays };
+  }
+  if (type === "goal") {
+    return { title: isEditing ? t.editGoal : t.addGoal, body: t.goalModalBody, icon: Target };
+  }
+  return { title: t.addQuick, body: "", icon: ReceiptText };
+}
+
 function placeholderFor(type: QuickType, t: Copy) {
   if (type === "budget") return t.placeholders.budget;
   if (type === "habit") return t.placeholders.habit;
@@ -278,6 +305,7 @@ function formValuesFor(type: QuickType, item: EditableItem) {
       expenseKind: movement.expenseKind || "individual",
       sharedWith: movement.sharedWith || "",
       ownerSharePercent: String(movement.ownerSharePercent ?? 50),
+      paidBy: movement.paidBy || "me",
     };
   }
   if (type === "budget") {

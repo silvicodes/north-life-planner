@@ -1,11 +1,15 @@
-export type Section = "inicio" | "finanzas" | "estudios" | "dia" | "calendario" | "objetivos";
+export type Section = "inicio" | "finanzas" | "proyectos" | "estudios" | "dia" | "calendario" | "objetivos";
 export type Lang = "es" | "en";
 export type Theme = "light" | "dark";
 export type PriorityKey = "high" | "medium" | "low";
 export type Frequency = "daily" | "weekly" | "monthly";
 export type CalendarMode = "day" | "week" | "month";
+export type ProjectStatus = "todo" | "inProgress" | "blocked" | "done";
+export type ProjectPaymentStatus = "pending" | "partial" | "paid";
+export type ProjectLifecycleStatus = "lead" | "active" | "review" | "delivered" | "archived";
 export type QuickType = "expense" | "income" | "studyTask" | "task" | "habit" | "event" | "goal" | "budget";
 export type ExpenseKind = "individual" | "shared";
+export type ExpensePaidBy = "me" | "other";
 
 export type Task = {
   id: string;
@@ -25,6 +29,7 @@ export type Movement = {
   expenseKind?: ExpenseKind;
   sharedWith?: string;
   ownerSharePercent?: number;
+  paidBy?: ExpensePaidBy;
 };
 
 export type Habit = {
@@ -57,6 +62,31 @@ export type Budget = {
   monthlyLimit: number;
 };
 
+export type ProjectTask = {
+  id: string;
+  title: string;
+  description: string;
+  status: ProjectStatus;
+  priority: PriorityKey;
+  dueDate: string;
+  checklist: string[];
+};
+
+export type Project = {
+  id: string;
+  name: string;
+  client: string;
+  budget: number;
+  deadline: string;
+  priority: PriorityKey;
+  status: ProjectLifecycleStatus;
+  paymentStatus: ProjectPaymentStatus;
+  estimatedHours: number;
+  actualHours: number;
+  notes: string;
+  tasks: ProjectTask[];
+};
+
 export type AppData = {
   tasks: Task[];
   movements: Movement[];
@@ -64,6 +94,7 @@ export type AppData = {
   events: EventItem[];
   goals: Goal[];
   budgets: Budget[];
+  projects: Project[];
 };
 
 export const emptyData: AppData = {
@@ -73,4 +104,5 @@ export const emptyData: AppData = {
   events: [],
   goals: [],
   budgets: [],
+  projects: [],
 };
