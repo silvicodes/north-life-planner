@@ -290,6 +290,10 @@ button {
 }
 
 .primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 42px;
   padding: 0 16px;
   border: 0;
@@ -301,6 +305,12 @@ button {
 
 .primary-button.danger {
   background: #8f352d;
+}
+
+.primary-button.compact {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
 }
 
 .language-button {
@@ -377,6 +387,13 @@ button {
 
 .panel {
   padding: 16px;
+}
+
+.panel-featured {
+  border-color: color-mix(in srgb, var(--accent-border) 70%, var(--border));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 50%, transparent), transparent 42%),
+    var(--panel);
 }
 
 .panel-header {
@@ -917,6 +934,323 @@ button {
   background: var(--surface);
 }
 
+.movement-filters {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.movement-filters label {
+  display: grid;
+  gap: 6px;
+}
+
+.movement-filters span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.movement-filters input,
+.movement-filters select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  color: var(--text);
+  background: var(--panel-solid);
+}
+
+.project-summary-grid {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.project-filters {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.project-filters select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  color: var(--text);
+  background: var(--panel-solid);
+}
+
+.project-list,
+.project-board-panel,
+.project-empty,
+.project-list-empty {
+  display: grid;
+}
+
+.project-list {
+  gap: 8px;
+}
+
+.project-list-empty,
+.project-empty {
+  gap: 10px;
+  min-height: 180px;
+  place-items: center;
+  padding: 18px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 14px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  text-align: center;
+}
+
+.project-empty strong {
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.project-empty span {
+  max-width: 360px;
+}
+
+.project-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.project-list-item.active {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+
+.project-list-item > button {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  min-width: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+}
+
+.project-list-item span,
+.project-header span,
+.project-task-meta span,
+.kanban-empty,
+.project-board-hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.project-header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.project-header > div {
+  display: grid;
+  gap: 5px;
+  min-height: 78px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.project-timeline {
+  display: grid;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.project-timeline > div {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.project-timeline button {
+  display: grid;
+  gap: 3px;
+  min-width: 190px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--panel-solid);
+  text-align: left;
+}
+
+.project-timeline button.late,
+.project-timeline button.blocked {
+  border-color: color-mix(in srgb, #8f352d 42%, var(--border));
+}
+
+.project-timeline small {
+  color: var(--muted);
+}
+
+.project-task-form {
+  display: grid;
+  grid-template-columns: 1.2fr 1.3fr 1.2fr 150px 130px auto;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 84%, var(--accent-soft));
+}
+
+.project-task-form input,
+.project-task-form select,
+.project-task-form textarea,
+.project-task-actions select,
+.quick-form textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  color: var(--text);
+  background: var(--panel-solid);
+}
+
+.project-task-form textarea {
+  min-height: 42px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.quick-form textarea {
+  min-height: 88px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.quick-form label:has(textarea) {
+  grid-column: 1 / -1;
+}
+
+.kanban-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.kanban-column {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 320px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--soft);
+}
+
+.kanban-column header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.kanban-column header span {
+  display: grid;
+  min-width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--nav-active);
+  background: var(--panel-solid);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.project-task-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel-solid);
+  box-shadow: 0 10px 22px var(--shadow);
+}
+
+.project-task-card[draggable="true"] {
+  cursor: grab;
+}
+
+.project-task-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.project-task-card p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.project-checklist {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 0 0 18px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.project-task-meta,
+.project-task-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.project-task-actions select {
+  min-height: 36px;
+}
+
+.kanban-empty,
+.project-board-hint {
+  display: block;
+  padding: 12px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.project-board-hint {
+  grid-column: 1 / -1;
+  background: var(--surface);
+}
+
 .monthly-expenses {
   display: grid;
   gap: 12px;
@@ -945,14 +1279,28 @@ button {
   gap: 8px;
 }
 
-.shared-balance-list span {
+.shared-balance-list span,
+.shared-balance-list button {
+  display: inline-grid;
+  gap: 2px;
   min-height: 32px;
   padding: 7px 10px;
+  border: 0;
   border-radius: 999px;
   color: var(--nav-active);
   background: var(--accent-soft);
   font-size: 0.84rem;
   font-weight: 800;
+  text-align: left;
+}
+
+.shared-balance-list button span {
+  min-height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.78rem;
+  color: var(--muted);
 }
 
 .calendar-toolbar input {
@@ -1255,7 +1603,7 @@ button {
   box-shadow: 0 22px 60px var(--modal-shadow);
 }
 
-.quick-modal.expense-modal {
+.quick-modal.context-modal {
   width: min(620px, 100%);
 }
 
@@ -1396,15 +1744,15 @@ button {
   gap: 12px;
 }
 
-.expense-form {
+.context-form {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.expense-form > label:first-child,
-.expense-form .expense-kind-picker,
-.expense-form .split-section,
-.expense-form .form-error,
-.expense-form .form-actions {
+.context-form > label:first-child,
+.context-form .expense-kind-picker,
+.context-form .split-section,
+.context-form .form-error,
+.context-form .form-actions {
   grid-column: 1 / -1;
 }
 
@@ -1457,6 +1805,50 @@ button {
   border-color: var(--accent-border);
   color: var(--nav-active);
   background: var(--accent-soft);
+}
+
+.paid-by-picker {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.paid-by-picker button {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--nav-text);
+  background: var(--surface);
+  font-weight: 800;
+}
+
+.paid-by-picker button.selected {
+  border-color: var(--accent-border);
+  color: var(--nav-active);
+  background: var(--accent-soft);
+}
+
+.toast {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 28px));
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--accent-border);
+  border-radius: 14px;
+  color: var(--nav-active);
+  background: var(--panel-solid);
+  box-shadow: 0 18px 45px var(--shadow);
+}
+
+.toast.info {
+  border-color: var(--border-strong);
 }
 
 .split-section {
@@ -1551,6 +1943,15 @@ button {
   .span-8 {
     grid-column: span 6;
   }
+
+  .project-header,
+  .project-task-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .project-task-form .primary-button {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 760px) {
@@ -1611,9 +2012,11 @@ button {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .expense-form,
+  .context-form,
   .expense-kind-picker,
-  .split-section {
+  .split-section,
+  .paid-by-picker,
+  .movement-filters {
     grid-template-columns: 1fr;
   }
 
@@ -1643,6 +2046,22 @@ button {
 
   .monthly-summary-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-header,
+  .project-task-form {
+    grid-template-columns: 1fr;
+  }
+
+  .kanban-board {
+    grid-template-columns: repeat(4, minmax(240px, 82vw));
+  }
+
+  .toast {
+    right: 14px;
+    bottom: 86px;
+    left: 14px;
+    justify-content: center;
   }
 
   .split-preview {

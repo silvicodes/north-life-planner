@@ -1,6 +1,6 @@
 import { todayKey } from "./date";
 import { emptyData } from "../types";
-import type { AppData, Frequency, PriorityKey, QuickType } from "../types";
+import type { AppData, Frequency, PriorityKey, ProjectLifecycleStatus, ProjectPaymentStatus, ProjectStatus, QuickType } from "../types";
 
 const DATA_KEY = "north-data";
 export const LANG_KEY = "north-lang";
@@ -25,6 +25,7 @@ export function normalizeData(data: Partial<AppData>): AppData {
       expenseKind: movement.expenseKind === "shared" ? "shared" : "individual",
       sharedWith: text(movement.sharedWith),
       ownerSharePercent: Math.min(100, Math.max(0, number(movement.ownerSharePercent || 100))),
+      paidBy: movement.paidBy === "other" ? "other" : "me",
     })),
     events: ensureArray(data.events).map((event) => ({
       id: text(event.id),
@@ -43,6 +44,28 @@ export function normalizeData(data: Partial<AppData>): AppData {
       id: text(budget.id),
       category: text(budget.category),
       monthlyLimit: number(budget.monthlyLimit),
+    })),
+    projects: ensureArray(data.projects).map((project) => ({
+      id: text(project.id),
+      name: text(project.name),
+      client: text(project.client),
+      budget: number(project.budget),
+      deadline: text(project.deadline),
+      priority: priority(project.priority),
+      status: projectLifecycleStatus(project.status),
+      paymentStatus: paymentStatus(project.paymentStatus),
+      estimatedHours: number(project.estimatedHours),
+      actualHours: number(project.actualHours),
+      notes: text(project.notes),
+      tasks: ensureArray(project.tasks).map((task) => ({
+        id: text(task.id),
+        title: text(task.title),
+        description: text(task.description),
+        status: projectStatus(task.status),
+        priority: priority(task.priority),
+        dueDate: text(task.dueDate),
+        checklist: ensureArray(task.checklist).map((item) => text(item)).filter(Boolean),
+      })),
     })),
     habits: ensureArray(data.habits).map((habit) => {
       const history = ensureArray(habit.history).map((date) => text(date)).filter(Boolean);
@@ -111,4 +134,19 @@ function priority(value: unknown): PriorityKey {
 
 function frequency(value: unknown): Frequency {
   return value === "weekly" || value === "monthly" ? value : "daily";
+}
+
+function projectStatus(value: unknown): ProjectStatus {
+  if (value === "inProgress" || value === "blocked" || value === "done") return value;
+  return "todo";
+}
+
+function paymentStatus(value: unknown): ProjectPaymentStatus {
+  if (value === "partial" || value === "paid") return value;
+  return "pending";
+}
+
+function projectLifecycleStatus(value: unknown): ProjectLifecycleStatus {
+  if (value === "lead" || value === "review" || value === "delivered" || value === "archived") return value;
+  return "active";
 }

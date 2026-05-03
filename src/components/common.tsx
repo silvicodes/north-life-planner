@@ -8,12 +8,14 @@ export function Panel({
   title,
   icon: Icon,
   viewLabel,
+  action,
   className = "",
   children,
 }: {
   title: string;
   icon: LucideIcon;
-  viewLabel: string;
+  viewLabel?: string;
+  action?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
@@ -24,7 +26,7 @@ export function Panel({
           <Icon size={18} />
           <h2>{title}</h2>
         </div>
-        <button className="ghost-button">{viewLabel}</button>
+        {action ?? (viewLabel ? <button className="ghost-button">{viewLabel}</button> : null)}
       </header>
       {children}
     </article>
@@ -55,19 +57,23 @@ export function EmptyState({
   type,
   openQuick,
   message,
+  title,
+  cta,
 }: {
   t: Copy;
   type: QuickType;
   openQuick: (type?: QuickType, id?: string) => void;
   message?: string;
+  title?: string;
+  cta?: string;
 }) {
   return (
     <div className="empty-state">
-      <strong>{t.empty.title}</strong>
+      <strong>{title ?? t.empty.title}</strong>
       <span>{message ?? t.empty.body}</span>
       <button className="ghost-button" onClick={() => openQuick(type)}>
         <Plus size={16} />
-        {t.empty.cta}
+        {cta ?? t.empty.cta}
       </button>
     </div>
   );
