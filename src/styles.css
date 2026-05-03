@@ -1955,8 +1955,12 @@ button {
 }
 
 @media (max-width: 760px) {
+  body {
+    overflow-x: hidden;
+  }
+
   .content {
-    padding: 16px 14px;
+    padding: 16px 14px calc(150px + env(safe-area-inset-bottom));
   }
 
   .topbar {
@@ -1975,7 +1979,7 @@ button {
   .page-grid {
     grid-template-columns: 1fr;
     gap: 12px;
-    padding-bottom: 112px;
+    padding-bottom: calc(210px + env(safe-area-inset-bottom));
   }
 
   .span-4,
@@ -1986,10 +1990,50 @@ button {
     grid-column: 1;
   }
 
+  .panel,
+  .hero-panel,
+  .onboarding-panel {
+    border-radius: 16px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .panel-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .panel-header > div {
+    flex: 1 1 170px;
+  }
+
+  .panel-header > .ghost-button,
+  .panel-header > .primary-button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .panel-header h2 {
+    font-size: 1.08rem;
+    line-height: 1.18;
+  }
+
   .hero-panel {
     grid-template-columns: 1fr;
-    min-height: 520px;
+    min-height: auto;
     padding: 22px;
+  }
+
+  .hero-panel h2 {
+    font-size: clamp(2.35rem, 13vw, 3.8rem);
+    line-height: 0.98;
+  }
+
+  .hero-panel p {
+    font-size: 1rem;
   }
 
   .onboarding-panel,
@@ -2040,8 +2084,16 @@ button {
   .auth-form,
   .calendar-toolbar input,
   .finance-toolbar input,
+  .movement-filters input,
+  .movement-filters select,
+  .project-filters select,
+  .quick-form input,
+  .quick-form select,
+  .quick-form textarea,
   .segmented-control {
+    min-width: 0;
     width: 100%;
+    max-width: 100%;
   }
 
   .monthly-summary-grid {
@@ -2090,7 +2142,7 @@ button {
   .bottom-nav {
     position: fixed;
     right: 10px;
-    bottom: 10px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
     left: 10px;
     z-index: 24;
     display: grid;
@@ -2123,15 +2175,11 @@ button {
   }
 
   .fab {
-    right: 18px;
-    bottom: 88px;
-    width: 54px;
-    height: 54px;
-    border-radius: 18px;
+    display: none;
   }
 
   .app-footer {
     flex-wrap: wrap;
-    margin: -76px auto 94px;
+    margin: -76px auto calc(150px + env(safe-area-inset-bottom));
   }
 }
