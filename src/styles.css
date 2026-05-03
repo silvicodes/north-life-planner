@@ -93,8 +93,13 @@ select {
 }
 
 select {
-  padding-right: 40px;
-  background-position: right 14px center;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 46px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23514c43' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-position: right 16px center;
+  background-repeat: no-repeat;
+  background-size: 18px 18px;
 }
 
 button {
@@ -969,11 +974,11 @@ button {
   border: 1px solid var(--border-strong);
   border-radius: 11px;
   color: var(--text);
-  background: var(--panel-solid);
+  background-color: var(--panel-solid);
 }
 
 .movement-filters select {
-  padding-right: 40px;
+  padding-right: 46px;
 }
 
 .project-summary-grid {
@@ -995,8 +1000,8 @@ button {
   border: 1px solid var(--border-strong);
   border-radius: 11px;
   color: var(--text);
-  background: var(--panel-solid);
-  padding-right: 40px;
+  background-color: var(--panel-solid);
+  padding-right: 46px;
 }
 
 .project-list,
@@ -1144,12 +1149,12 @@ button {
   border: 1px solid var(--border-strong);
   border-radius: 11px;
   color: var(--text);
-  background: var(--panel-solid);
+  background-color: var(--panel-solid);
 }
 
 .project-task-form select,
 .project-task-actions select {
-  padding-right: 38px;
+  padding-right: 46px;
 }
 
 .project-task-form textarea {
@@ -1790,11 +1795,11 @@ button {
   border: 1px solid var(--border-strong);
   border-radius: 12px;
   color: var(--text);
-  background: var(--surface);
+  background-color: var(--surface);
 }
 
 .quick-form select {
-  padding-right: 40px;
+  padding-right: 46px;
 }
 
 .quick-form label:has(input[readonly]) {
