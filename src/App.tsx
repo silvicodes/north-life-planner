@@ -1,8 +1,10 @@
 import {
+  AlertCircle,
   BookOpen,
   CalendarDays,
   CheckCircle2,
   CircleDollarSign,
+  Cloud,
   Clock3,
   Download,
   Flame,
@@ -15,10 +17,12 @@ import {
   Plus,
   Search,
   Settings,
+  ShieldCheck,
   Sparkles,
   Sun,
   Target,
   Upload,
+  Users,
   WalletCards,
   X,
 } from "lucide-react";
@@ -68,6 +72,18 @@ type SyncStatus = "local" | "loading" | "synced" | "saving" | "error";
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function currentMonthKey() {
+  return todayKey().slice(0, 7);
+}
+
+function sharedOwnAmount(movement: Movement) {
+  return movement.amount * ((movement.ownerSharePercent ?? 100) / 100);
+}
+
+function sharedOtherAmount(movement: Movement) {
+  return Math.max(0, movement.amount - sharedOwnAmount(movement));
 }
 
 function isAppEmpty(data: AppData) {
@@ -177,13 +193,19 @@ function App() {
   function saveItem(type: QuickType, payload: Record<string, FormDataEntryValue>) {
     setData((current) => {
       if (type === "income" || type === "expense") {
-        const amount = Number(payload.amount) || 0;
+        const amount = Math.max(0, Number(payload.amount) || 0);
+        const expenseKind = type === "expense" && payload.expenseKind === "shared" ? "shared" : "individual";
+        const ownerSharePercent = expenseKind === "shared" ? Math.min(100, Math.max(0, Number(payload.ownerSharePercent) || 50)) : 100;
         const movement: Movement = {
           id: editingId ?? createId(),
           title: String(payload.title || t.quick[type]),
           category: String(payload.category || t.nav.finanzas),
           amount,
           type,
+          date: String(payload.date || todayKey()),
+          expenseKind,
+          sharedWith: expenseKind === "shared" ? String(payload.sharedWith || "") : "",
+          ownerSharePercent,
         };
         if (editingId) {
           return { ...current, movements: current.movements.map((item) => (item.id === editingId ? movement : item)) };
@@ -666,13 +688,36 @@ function HomeView({
 }
 
 function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey());
   const income = data.movements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
   const expenses = data.movements.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
   const balance = income - expenses;
   const averageExpense = data.movements.filter((item) => item.type === "expense").length ? expenses / data.movements.filter((item) => item.type === "expense").length : 0;
+  const monthlyExpenses = data.movements.filter((item) => item.type === "expense" && item.date.startsWith(selectedMonth));
+  const individualTotal = monthlyExpenses
+    .filter((item) => item.expenseKind !== "shared")
+    .reduce((sum, item) => sum + item.amount, 0);
+  const sharedExpenses = monthlyExpenses.filter((item) => item.expenseKind === "shared");
+  const sharedTotal = sharedExpenses.reduce((sum, item) => sum + item.amount, 0);
+  const pendingBalance = sharedExpenses.reduce((sum, item) => sum + sharedOtherAmount(item), 0);
+  const monthlyTotal = individualTotal + sharedTotal;
 
   return (
     <>
+      <Panel title={t.labels.monthlyExpenses} icon={Users} viewLabel={t.view} className="span-12">
+        <MonthlyExpenseSummary
+          t={t}
+          money={money}
+          selectedMonth={selectedMonth}
+          onMonthChange={setSelectedMonth}
+          monthlyTotal={monthlyTotal}
+          individualTotal={individualTotal}
+          sharedTotal={sharedTotal}
+          pendingBalance={pendingBalance}
+          sharedExpenses={sharedExpenses}
+          openQuick={openQuick}
+        />
+      </Panel>
       <Panel title={t.labels.summary} icon={WalletCards} viewLabel={t.view} className="span-4">
         <MetricRow label={t.labels.estimatedBalance} value={money.format(balance)} positive={balance >= 0} />
         <MetricRow label={t.labels.averageDailySpend} value={money.format(averageExpense)} />
@@ -688,6 +733,63 @@ function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
         <MovementList t={t} movements={data.movements} money={money} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
     </>
+  );
+}
+
+function MonthlyExpenseSummary({
+  t,
+  money,
+  selectedMonth,
+  onMonthChange,
+  monthlyTotal,
+  individualTotal,
+  sharedTotal,
+  pendingBalance,
+  sharedExpenses,
+  openQuick,
+}: {
+  t: (typeof copy)[Lang];
+  money: Intl.NumberFormat;
+  selectedMonth: string;
+  onMonthChange: Dispatch<SetStateAction<string>>;
+  monthlyTotal: number;
+  individualTotal: number;
+  sharedTotal: number;
+  pendingBalance: number;
+  sharedExpenses: Movement[];
+  openQuick: (type?: QuickType, id?: string) => void;
+}) {
+  const pendingByPerson = sharedExpenses.reduce<Record<string, number>>((totals, expense) => {
+    const person = expense.sharedWith || t.labels.sharedPersonFallback;
+    totals[person] = (totals[person] ?? 0) + sharedOtherAmount(expense);
+    return totals;
+  }, {});
+
+  return (
+    <div className="monthly-expenses">
+      <div className="finance-toolbar">
+        <input type="month" value={selectedMonth} onChange={(event) => onMonthChange(event.target.value)} aria-label={t.labels.monthSelector} />
+        <button className="ghost-button" onClick={() => openQuick("expense")}>
+          <Plus size={16} />
+          {t.labels.addExpense}
+        </button>
+      </div>
+      <div className="monthly-summary-grid">
+        <MetricRow label={t.labels.totalSpent} value={money.format(monthlyTotal)} />
+        <MetricRow label={t.labels.totalIndividual} value={money.format(individualTotal)} />
+        <MetricRow label={t.labels.totalShared} value={money.format(sharedTotal)} />
+        <MetricRow label={t.labels.pendingBalance} value={money.format(pendingBalance)} positive={pendingBalance > 0} />
+      </div>
+      {Object.keys(pendingByPerson).length > 0 && (
+        <div className="shared-balance-list">
+          {Object.entries(pendingByPerson).map(([person, amount]) => (
+            <span key={person}>
+              {person}: {t.labels.toReceive} {money.format(amount)}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -874,7 +976,7 @@ function SettingsDialog({
           <h3>{t.cloudSync}</h3>
           <div className="settings-row">
             <span>{authUser ? `${t.signedInAs} ${authUser.email}` : supabaseEnabled ? t.syncDisabled : t.authHint}</span>
-            <span className="sync-pill">{syncLabel(t, syncStatus)}</span>
+            <span className={`sync-pill ${syncTone(syncStatus)}`}>{syncLabel(t, syncStatus)}</span>
           </div>
           {authUser && (
             <button className="ghost-button" onClick={onSignOut}>
@@ -958,19 +1060,22 @@ function AuthPanel({
           <strong>{t.localMode}</strong>
           <span>{t.authHint}</span>
         </div>
-        <span className="sync-pill">{t.syncDisabled}</span>
+        <span className="sync-pill local">{t.syncDisabled}</span>
       </div>
     );
   }
 
   if (user) {
     return (
-      <div className="auth-panel">
-        <div>
-          <strong>{t.signedInAs}</strong>
-          <span>{user.email}</span>
+      <div className="auth-card connected">
+        <div className="auth-card-icon">
+          <Cloud size={20} />
         </div>
-        <span className="sync-pill">{syncLabel(t, syncStatus)}</span>
+        <div className="auth-card-copy">
+          <strong>{t.authConnectedTitle}</strong>
+          <span>{t.signedInAs} {user.email}</span>
+        </div>
+        <span className={`sync-pill ${syncTone(syncStatus)}`}>{syncLabel(t, syncStatus)}</span>
         <button className="ghost-button" onClick={onSignOut}>
           {t.signOut}
         </button>
@@ -979,33 +1084,69 @@ function AuthPanel({
   }
 
   return (
-    <form className="auth-form" onSubmit={onSubmit}>
-      <label>
-        <span>{t.email}</span>
-        <input type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} required />
-      </label>
-      <label>
-        <span>{t.password}</span>
-        <input type="password" value={password} onChange={(event) => onPasswordChange(event.target.value)} required minLength={6} />
-      </label>
-      {message && <span className="auth-message">{message}</span>}
-      <div className="form-actions">
-        <button type="button" className="ghost-button" onClick={() => onModeChange(mode === "signIn" ? "signUp" : "signIn")}>
-          {mode === "signIn" ? t.createAccount : t.haveAccount}
-        </button>
-        <button type="submit" className="primary-button" disabled={loading}>
-          {mode === "signIn" ? t.signIn : t.signUp}
-        </button>
+    <div className="auth-card">
+      <div className="auth-card-header">
+        <div className="auth-card-icon">
+          <ShieldCheck size={20} />
+        </div>
+        <div className="auth-card-copy">
+          <strong>{mode === "signIn" ? t.authTitle : t.authSignupTitle}</strong>
+          <span>{t.authBody}</span>
+        </div>
+        <span className={`sync-pill ${syncTone(syncStatus)}`}>{syncLabel(t, syncStatus)}</span>
       </div>
-    </form>
+      <form className="auth-form" onSubmit={onSubmit}>
+        <label>
+          <span>{t.email}</span>
+          <input type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} required autoComplete="email" />
+        </label>
+        <label>
+          <span>{t.password}</span>
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => onPasswordChange(event.target.value)}
+            required
+            minLength={6}
+            autoComplete={mode === "signIn" ? "current-password" : "new-password"}
+          />
+        </label>
+        {message && (
+          <span className={`auth-message ${message === t.checkEmail ? "success" : "error"}`}>
+            {message === t.checkEmail ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            {message}
+          </span>
+        )}
+        <span className="auth-note">
+          <ShieldCheck size={15} />
+          {t.authSecure}
+        </span>
+        <div className="form-actions">
+          <button type="button" className="ghost-button" onClick={() => onModeChange(mode === "signIn" ? "signUp" : "signIn")}>
+            {mode === "signIn" ? t.createAccount : t.haveAccount}
+          </button>
+          <button type="submit" className="primary-button" disabled={loading}>
+            {loading ? t.authLoading : mode === "signIn" ? t.signIn : t.signUp}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 
 function syncLabel(t: (typeof copy)[Lang], status: SyncStatus) {
   if (status === "saving") return t.syncSaving;
   if (status === "synced") return t.syncReady;
-  if (status === "loading") return t.syncSaving;
+  if (status === "loading") return t.syncLoading;
+  if (status === "error") return t.syncError;
   return t.syncDisabled;
+}
+
+function syncTone(status: SyncStatus) {
+  if (status === "synced") return "success";
+  if (status === "saving" || status === "loading") return "loading";
+  if (status === "error") return "error";
+  return "local";
 }
 
 function TaskList({
@@ -1079,7 +1220,12 @@ function MovementList({
           <span className={`dot ${movement.type === "income" ? "sage" : "amber"}`} />
           <div>
             <strong>{movement.title}</strong>
-            <small>{movement.category}</small>
+            <small>
+              {movement.category} · {movement.date || t.noDate}
+              {movement.type === "expense" && movement.expenseKind === "shared"
+                ? ` · ${t.labels.sharedWith} ${movement.sharedWith || t.labels.sharedPersonFallback} · ${movement.ownerSharePercent ?? 50}/${100 - (movement.ownerSharePercent ?? 50)} · ${t.labels.yourShare} ${money.format(sharedOwnAmount(movement))} · ${t.labels.otherShare} ${money.format(sharedOtherAmount(movement))}`
+                : ""}
+            </small>
           </div>
           <b className={movement.type === "income" ? "positive" : ""}>
             {movement.type === "income" ? "+" : "-"}
