@@ -525,7 +525,7 @@ function App() {
         </footer>
       </main>
 
-      <button className="fab" onClick={() => openQuick("task")} aria-label={t.addQuick}>
+      <button className="fab" onClick={() => openQuick("task")} aria-label={t.labels.addTask}>
         <Plus size={23} />
       </button>
 
@@ -560,7 +560,6 @@ function App() {
           currency={currency}
           editingItem={editingItem}
           isEditing={Boolean(editingId)}
-          onSelect={setQuickType}
           onSave={saveItem}
           onClose={closeQuick}
         />
