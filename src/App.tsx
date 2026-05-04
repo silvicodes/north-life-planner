@@ -651,106 +651,75 @@ function renderSection(active: Section, props: ViewProps) {
 function HomeView({
   t,
   data,
-  money,
   openQuick,
   deleteItem,
   setData,
-  exportData,
-  importData,
-  authUser,
-  authEmail,
-  authPassword,
-  authMode,
-  authLoading,
-  authMessage,
-  syncStatus,
-  supabaseEnabled,
-  setAuthEmail,
-  setAuthPassword,
-  setAuthMode,
-  handleAuth,
-  handleSignOut,
 }: ViewProps) {
-  const income = data.movements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
-  const expenses = data.movements.filter((item) => item.type === "expense").reduce((sum, item) => sum + item.amount, 0);
-  const balance = income - expenses;
-  const appEmpty = isAppEmpty(data);
+  const todayTasks = data.tasks.filter((task) => task.areaKey === "dia");
+  const completedHabits = data.habits.filter((habit) => habit.history.includes(todayKey())).length;
 
   return (
     <>
-      <section className="hero-panel span-8">
+      <section className="today-hero span-12">
         <div>
-          <p className="eyebrow">{t.hero.eyebrow}</p>
-          <h2>{t.hero.title}</h2>
-          <p>{t.hero.body}</p>
-          <button className="hero-action" onClick={() => openQuick("task")}>
-            <Plus size={18} />
-            {t.addQuick}
-          </button>
+          <p className="eyebrow">{t.labels.todayView}</p>
+          <h2>{t.labels.todayFocusTitle}</h2>
+          <p>{t.labels.todayFocusBody}</p>
         </div>
-        <div className="hero-stats">
-          <Metric icon={WalletCards} label={t.labels.available} value={money.format(balance)} />
-          <Metric icon={CheckCircle2} label={t.labels.pending} value={String(data.tasks.length)} />
-          <Metric icon={Flame} label={t.labels.habits} value={`${data.habits.filter((habit) => habit.history.includes(todayKey())).length}/${data.habits.length}`} />
-        </div>
+        <button className="primary-button today-primary-action" onClick={() => openQuick("task")}>
+          <Plus size={18} />
+          {t.labels.addTask}
+        </button>
       </section>
-      {appEmpty ? (
-        <Onboarding t={t} openQuick={openQuick} />
-      ) : (
-        <>
-          <Panel title={t.labels.priorities} icon={Target} className="span-4" action={<button className="ghost-button" onClick={() => openQuick("task")}><Plus size={16} />{t.quick.task}</button>}>
-            <TaskList t={t} tasks={data.tasks.slice(0, 4)} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
-          </Panel>
-          <Panel title={t.labels.monthFinance} icon={CircleDollarSign} className="span-4" action={<button className="ghost-button" onClick={() => openQuick("expense")}><Plus size={16} />{t.quick.expense}</button>}>
-            <MetricRow label={t.labels.income} value={money.format(income)} positive />
-            <MetricRow label={t.labels.expenses} value={money.format(expenses)} />
-            <MetricRow label={t.labels.plannedSavings} value={money.format(balance)} positive={balance >= 0} />
-          </Panel>
-          <Panel title={t.labels.academicTasks} icon={BookOpen} className="span-4" action={<button className="ghost-button" onClick={() => openQuick("studyTask")}><Plus size={16} />{t.quick.studyTask}</button>}>
-            <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "estudios").slice(0, 3)} setData={setData} emptyType="studyTask" openQuick={openQuick} deleteItem={deleteItem} />
-          </Panel>
-          <Panel title={t.labels.habits} icon={Flame} className="span-4" action={<button className="ghost-button" onClick={() => openQuick("habit")}><Plus size={16} />{t.quick.habit}</button>}>
-            <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} deleteItem={deleteItem} />
-          </Panel>
-          <Panel title={t.labels.todayAgenda} icon={CalendarDays} className="span-12" action={<button className="ghost-button" onClick={() => openQuick("event")}><Plus size={16} />{t.addEvent}</button>}>
-            <EventList t={t} events={data.events} openQuick={openQuick} deleteItem={deleteItem} />
-          </Panel>
-        </>
-      )}
-      <Panel title={t.cloudSync} icon={Sparkles} className="span-12">
-        <AuthPanel
-          t={t}
-          user={authUser}
-          email={authEmail}
-          password={authPassword}
-          mode={authMode}
-          loading={authLoading}
-          message={authMessage}
-          syncStatus={syncStatus}
-          enabled={supabaseEnabled}
-          onEmailChange={setAuthEmail}
-          onPasswordChange={setAuthPassword}
-          onModeChange={setAuthMode}
-          onSubmit={handleAuth}
-          onSignOut={handleSignOut}
-        />
+
+      <Panel
+        title={t.labels.todayTasks}
+        icon={ListTodo}
+        className="span-7 panel-featured"
+        action={
+          <button className="primary-button compact" onClick={() => openQuick("task")}>
+            <Plus size={18} />
+            {t.labels.addTask}
+          </button>
+        }
+      >
+        {todayTasks.length ? (
+          <TaskList t={t} tasks={todayTasks} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
+        ) : (
+          <GuidedState title={t.labels.todayTasksGuideTitle} body={t.labels.todayTasksGuideBody} actionLabel={t.labels.addTask} onAction={() => openQuick("task")} />
+        )}
       </Panel>
-      <Panel title={t.labels.dataPortability} icon={Download} className="span-12">
-        <div className="data-tools">
-          <span>{t.labels.dataPortabilityBody}</span>
-          <div>
-            <button className="ghost-button" onClick={exportData}>
-              <Download size={16} />
-              {t.exportData}
-            </button>
-            <button className="ghost-button" onClick={importData}>
-              <Upload size={16} />
-              {t.importData}
-            </button>
-          </div>
-        </div>
+
+      <Panel
+        title={t.labels.todayHabits}
+        icon={Flame}
+        className="span-5"
+        action={
+          <span className="today-count">
+            {completedHabits}/{data.habits.length}
+          </span>
+        }
+      >
+        {data.habits.length ? (
+          <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} deleteItem={deleteItem} />
+        ) : (
+          <GuidedState title={t.labels.todayHabitsGuideTitle} body={t.labels.todayHabitsGuideBody} actionLabel={t.labels.addHabit} onAction={() => openQuick("habit")} />
+        )}
       </Panel>
     </>
+  );
+}
+
+function GuidedState({ title, body, actionLabel, onAction }: { title: string; body: string; actionLabel: string; onAction: () => void }) {
+  return (
+    <div className="guided-state">
+      <strong>{title}</strong>
+      <span>{body}</span>
+      <button className="ghost-button" onClick={onAction}>
+        <Plus size={16} />
+        {actionLabel}
+      </button>
+    </div>
   );
 }
 
