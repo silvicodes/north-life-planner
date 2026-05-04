@@ -792,9 +792,11 @@ function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
       >
         <BudgetList t={t} budgets={data.budgets} movements={data.movements} selectedMonth={selectedMonth} money={money} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
-      <Panel title={t.labels.charts} icon={CircleDollarSign} className="span-12">
-        <FinanceCharts t={t} movements={data.movements} money={money} />
-      </Panel>
+      {data.movements.length > 0 && (
+        <Panel title={t.labels.charts} icon={CircleDollarSign} className="span-12">
+          <FinanceCharts t={t} movements={data.movements} money={money} />
+        </Panel>
+      )}
       <Panel title={t.labels.recentMovements} icon={CircleDollarSign} className="span-12">
         <MovementFilters
           t={t}
@@ -954,6 +956,8 @@ function ProjectsView({ t, data, money, setData, notify }: ViewProps) {
   const clients = Array.from(new Set(data.projects.map((project) => project.client).filter(Boolean))).sort((a, b) => a.localeCompare(b));
   const selectedProject = visibleProjects.find((project) => project.id === selectedProjectId) ?? visibleProjects[0] ?? null;
   const selectedProjectTasks = selectedProject?.tasks ?? [];
+  const hasProjects = data.projects.length > 0;
+  const showProjectFilters = data.projects.length > 1 || clients.length > 1;
   const activeProjects = data.projects.filter((project) => project.status !== "archived" && project.status !== "delivered").length;
   const blockedTasks = data.projects.reduce((sum, project) => sum + project.tasks.filter((task) => task.status === "blocked").length, 0);
   const pendingRevenue = data.projects
@@ -1075,11 +1079,13 @@ function ProjectsView({ t, data, money, setData, notify }: ViewProps) {
           </button>
         }
       >
-        <div className="project-summary-grid">
-          <MetricRow label={t.projects.activeProjects} value={String(activeProjects)} positive />
-          <MetricRow label={t.projects.blockedTasks} value={String(blockedTasks)} />
-          <MetricRow label={t.projects.pendingRevenue} value={money.format(pendingRevenue)} positive={pendingRevenue > 0} />
-        </div>
+        {hasProjects && (
+          <div className="project-summary-grid">
+            <MetricRow label={t.projects.activeProjects} value={String(activeProjects)} positive />
+            <MetricRow label={t.projects.blockedTasks} value={String(blockedTasks)} />
+            <MetricRow label={t.projects.pendingRevenue} value={money.format(pendingRevenue)} positive={pendingRevenue > 0} />
+          </div>
+        )}
         <ProjectList
           t={t}
           projects={visibleProjects}
@@ -1088,16 +1094,18 @@ function ProjectsView({ t, data, money, setData, notify }: ViewProps) {
           onEdit={(id) => setProjectDialog({ id })}
           onDelete={deleteProject}
         />
-        <ProjectFilters
-          t={t}
-          projectFilter={projectFilter}
-          onProjectFilterChange={setProjectFilter}
-          clientFilter={clientFilter}
-          onClientFilterChange={setClientFilter}
-          paymentFilter={paymentFilter}
-          onPaymentFilterChange={setPaymentFilter}
-          clients={clients}
-        />
+        {showProjectFilters && (
+          <ProjectFilters
+            t={t}
+            projectFilter={projectFilter}
+            onProjectFilterChange={setProjectFilter}
+            clientFilter={clientFilter}
+            onClientFilterChange={setClientFilter}
+            paymentFilter={paymentFilter}
+            onPaymentFilterChange={setPaymentFilter}
+            clients={clients}
+          />
+        )}
       </Panel>
 
       <Panel
@@ -1133,7 +1141,6 @@ function ProjectsView({ t, data, money, setData, notify }: ViewProps) {
             </form>
             <ProjectBoard
               t={t}
-              project={selectedProject}
               tasks={selectedProjectTasks}
               onUpdateTask={(taskId, patch) => updateProjectTask(selectedProject.id, taskId, patch)}
               onDeleteTask={(taskId) => deleteProjectTask(selectedProject.id, taskId)}
@@ -1263,22 +1270,30 @@ function ProjectHeader({ t, project, money }: { t: (typeof copy)[Lang]; project:
         <span>{t.projects.status}</span>
         <strong>{t.projects.projectStatuses[project.status]}</strong>
       </div>
-      <div>
-        <span>{t.projects.budget}</span>
-        <strong>{money.format(project.budget)}</strong>
-      </div>
-      <div>
-        <span>{t.projects.hours}</span>
-        <strong>{project.actualHours}/{project.estimatedHours || 0}h</strong>
-      </div>
-      <div>
-        <span>{t.projects.effectiveRate}</span>
-        <strong>{hourlyRate ? `${money.format(hourlyRate)}/h` : t.projects.notEnoughData}</strong>
-      </div>
-      <div>
-        <span>{t.progress}</span>
-        <strong>{projectProgress(project)}%</strong>
-      </div>
+      {project.budget > 0 && (
+        <div>
+          <span>{t.projects.budget}</span>
+          <strong>{money.format(project.budget)}</strong>
+        </div>
+      )}
+      {(project.actualHours > 0 || project.estimatedHours > 0) && (
+        <div>
+          <span>{t.projects.hours}</span>
+          <strong>{project.actualHours}/{project.estimatedHours || 0}h</strong>
+        </div>
+      )}
+      {hourlyRate > 0 && (
+        <div>
+          <span>{t.projects.effectiveRate}</span>
+          <strong>{money.format(hourlyRate)}/h</strong>
+        </div>
+      )}
+      {project.tasks.length > 0 && (
+        <div>
+          <span>{t.progress}</span>
+          <strong>{projectProgress(project)}%</strong>
+        </div>
+      )}
     </div>
   );
 }
@@ -1311,18 +1326,25 @@ function ProjectTimeline({
 
 function ProjectBoard({
   t,
-  project,
   tasks,
   onUpdateTask,
   onDeleteTask,
 }: {
   t: (typeof copy)[Lang];
-  project: Project;
   tasks: ProjectTask[];
   onUpdateTask: (taskId: string, patch: Partial<ProjectTask>) => void;
   onDeleteTask: (taskId: string) => void;
 }) {
   const columns: ProjectStatus[] = ["todo", "inProgress", "blocked", "done"];
+
+  if (!tasks.length) {
+    return (
+      <div className="project-board-start">
+        <strong>{t.projects.noTasksYetTitle}</strong>
+        <span>{t.projects.noTasksYet}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="kanban-board">
@@ -1378,13 +1400,10 @@ function ProjectBoard({
                   </div>
                 </article>
               ))
-            ) : (
-              <span className="kanban-empty">{status === "todo" ? t.projects.dropFirstTask : t.projects.noTasksInColumn}</span>
-            )}
+            ) : null}
           </section>
         );
       })}
-      {!project.tasks.length && <span className="project-board-hint">{t.projects.noTasksYet}</span>}
     </div>
   );
 }
@@ -1458,7 +1477,7 @@ function ProjectDialog({
             </select>
           </label>
           <label>
-            <span>{t.progress}</span>
+            <span>{t.priorityLabel}</span>
             <select name="priority" defaultValue={project?.priority ?? "medium"}>
               <option value="high">{t.priorities.high}</option>
               <option value="medium">{t.priorities.medium}</option>

@@ -1237,7 +1237,7 @@ button {
 
 .project-task-form {
   display: grid;
-  grid-template-columns: 1.2fr 1.3fr 1.2fr 150px 130px auto;
+  grid-template-columns: minmax(170px, 1.2fr) minmax(170px, 1fr) minmax(132px, 0.7fr) minmax(124px, 0.65fr) auto;
   gap: 8px;
   margin-bottom: 12px;
   padding: 10px;
@@ -1266,6 +1266,7 @@ button {
 }
 
 .project-task-form textarea {
+  grid-column: 1 / -1;
   min-height: 42px;
   padding: 10px;
   resize: vertical;
@@ -1366,7 +1367,8 @@ button {
 }
 
 .kanban-empty,
-.project-board-hint {
+.project-board-hint,
+.project-board-start {
   display: block;
   padding: 12px;
   border: 1px dashed var(--border-strong);
@@ -1374,9 +1376,27 @@ button {
   text-align: center;
 }
 
-.project-board-hint {
+.project-board-hint,
+.project-board-start {
   grid-column: 1 / -1;
   background: var(--surface);
+}
+
+.project-board-start {
+  display: grid;
+  gap: 8px;
+  min-height: 140px;
+  place-items: center;
+  color: var(--muted);
+}
+
+.project-board-start strong {
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.project-board-start span {
+  max-width: 360px;
 }
 
 .monthly-expenses {
