@@ -1,74 +1,148 @@
-# North
+# North Planner
 
-North is a lightweight, responsive personal organization app designed to help people manage their daily life in one calm place.
+North Planner is a responsive personal productivity and finance planning app designed to bring everyday organisation into one focused workspace.
 
-It combines personal finance, study planning, habits, tasks, events, and goals into a clean dashboard that starts empty for every user. Each person can add their own information, and the data is saved locally in their browser.
+The app combines personal finance, shared expenses, project management, study planning, habits, goals and calendar workflows in a calm, mobile-friendly interface. It was built as a product-focused frontend project with attention to usability, data structure, responsive behaviour and real-world planning flows.
 
-## Features
+**Live demo:** https://northplanner.netlify.app
+**Repository:** https://github.com/silvicodes/north-life-planner
 
-- Personal dashboard with quick daily overview
-- Personal finance tracking:
-  - Income
-  - Expenses
-  - Current balance
-  - Recent movements
-  - Budget categories with monthly limits
-  - Lightweight finance charts
-- Study planning:
-  - Academic tasks
-  - Study-focused task entries
-- Daily organization:
-  - Tasks
-  - Recurring habits
-  - Habit completion history and streak tracking
-  - Agenda items
-  - Priorities
-- Goals:
-  - Custom goals
-  - Progress percentage
-  - Target notes
-  - Progress tracking chart
-- Calendar views by day, week, and month
-- Data export and import with JSON files
-- Edit and delete actions for user-created items
-- Quick-add modal for fast data entry
-- Empty states designed for first-time users
-- English and Spanish language switcher
-- Light and dark mode
-- Fully responsive layout for mobile, tablet, and desktop
-- Local-first data persistence with optional Supabase cloud sync
-- Fast Vite build with a small frontend footprint
+## Overview
+
+North Planner is designed for people who want a practical way to manage personal life and freelance-style work without jumping between separate tools.
+
+The product starts from an empty state and lets each user build their own workspace directly in the browser. It supports local-first data persistence and can optionally sync user data through Supabase when environment variables are configured.
+
+Core areas include:
+
+- Finance tracking with expenses, income, budgets and shared spending
+- Project management with a Kanban-style workflow
+- Calendar planning across day, week and month views
+- Study tasks, habits, daily tasks and personal goals
+- English and Spanish language support
+- Multi-currency settings for EUR, GBP and USD
+- Light and dark theme support
+- Import and export tools for user-owned data
+
+## Key Features
+
+### Finance Management
+
+- Monthly expense tracking
+- Income and expense movements
+- Individual and shared expense types
+- Shared expense split calculations
+- Settlement summary showing who owes or is owed money
+- Budget categories with monthly limits
+- Finance charts for income, expenses and spending by category
+- Movement filters by month, category and type
+- Multi-currency formatting for EUR, GBP and USD
+
+### Project Management
+
+- Project workspace for freelance, client or personal initiatives
+- Kanban-style task board with workflow stages
+- Task statuses for to do, in progress, blocked and done
+- Client, payment and progress tracking
+- Project-specific tasks and summaries
+- Mobile-friendly project layout for checking work on the go
+
+### Daily Planning
+
+- Daily task management
+- Calendar events
+- Day, week and month calendar views
+- Recurring habits
+- Habit completion history
+- Goal tracking with progress values
+- Study planning and academic task support
+
+### User Experience
+
+- Responsive layout for mobile, tablet and desktop
+- Sidebar navigation on desktop
+- Bottom navigation on mobile
+- Contextual forms for important flows
+- Custom month picker for consistent iOS rendering
+- Empty states tailored to each section
+- Toast feedback after saving actions
+- Accessible labels for icon buttons and form controls
+- Local-first experience with optional account-based sync
 
 ## Tech Stack
 
-- React
-- TypeScript
-- Vite
-- CSS
-- Lucide React icons
-- Browser `localStorage` for local persistence
-- Supabase Auth and database sync when configured
+- **React 19** for the user interface
+- **TypeScript** for typed application state and safer data handling
+- **Vite** for local development and production builds
+- **Supabase** for optional authentication and cloud sync
+- **Lucide React** for icons
+- **CSS** for custom responsive layout, themes and component styling
+- **localStorage** for local-first persistence
+
+## Product Decisions
+
+### Local-first by default
+
+North Planner works without an account. User data is stored in the browser first, which keeps the first-run experience simple and fast.
+
+Supabase sync is optional. When configured, authenticated users can persist their workspace in the cloud while the app remains usable without backend credentials.
+
+### Mobile UX as a first-class requirement
+
+The app is designed to be useful on an actual phone, not only in desktop responsive mode. Several interactions were adjusted specifically for mobile Safari, including navigation spacing and the finance month selector.
+
+### Contextual creation flows
+
+Instead of relying only on a generic quick-add modal, the app uses more specific flows for finances, projects, budgets, events and goals. This keeps the interface faster for simple actions while still supporting richer data when needed.
+
+### Structured personal data
+
+The application models each planning area as structured data: movements, budgets, projects, tasks, events, habits, goals and study items. This makes the app easier to extend and keeps import/export predictable.
+
+## Project Structure
+
+```txt
+north-app/
+├── index.html
+├── package.json
+├── vite.config.ts
+├── scripts/
+│   └── supabase-e2e.mjs
+└── src/
+    ├── App.tsx
+    ├── main.tsx
+    ├── styles.css
+    ├── types.ts
+    ├── components/
+    │   ├── Onboarding.tsx
+    │   ├── QuickAdd.tsx
+    │   └── common.tsx
+    ├── i18n/
+    │   └── copy.ts
+    └── lib/
+        ├── date.ts
+        ├── storage.ts
+        └── supabase.ts
+```
 
 ## Getting Started
 
 ### Prerequisites
 
-Make sure you have Node.js and npm installed.
-
-This project was built with:
+Use a recent version of Node.js and npm.
 
 ```bash
 node --version
 npm --version
 ```
 
-## Installation
+### Installation
 
 Clone the repository:
 
 ```bash
-git clone https://github.com/your-username/your-repository-name.git
-cd your-repository-name
+git clone https://github.com/silvicodes/north-life-planner.git
+cd north-life-planner
 ```
 
 Install dependencies:
@@ -83,82 +157,59 @@ Start the development server:
 npm run dev
 ```
 
-Open the local URL shown in your terminal, usually:
-
-```bash
-http://localhost:5173/
-```
+Open the local URL printed in the terminal.
 
 ## Available Scripts
-
-Run the development server:
 
 ```bash
 npm run dev
 ```
 
-Create a production build:
+Starts the Vite development server.
 
 ```bash
 npm run build
 ```
 
-Preview the production build:
+Runs the TypeScript build and creates a production-ready Vite build.
 
 ```bash
 npm run preview
 ```
 
-Run the Supabase end-to-end sync test:
+Serves the production build locally for final verification.
 
 ```bash
 npm run test:supabase:e2e
 ```
 
-## Project Structure
+Runs the Supabase end-to-end sync validation script when test credentials are configured.
 
-```txt
-north-app/
-├── index.html
-├── package.json
-├── tsconfig.json
-├── tsconfig.node.json
-├── vite.config.ts
-└── src/
-    ├── App.tsx
-    ├── main.tsx
-    └── styles.css
-```
+## Data Persistence
 
-## Data Storage
+North Planner stores user data locally in the browser.
 
-North is local-first by default and can sync to Supabase when configured.
-
-User data is stored in the browser using `localStorage`, under the key:
+Local storage keys include:
 
 ```txt
 north-data
-```
-
-Theme and language preferences are also stored locally:
-
-```txt
 north-theme
 north-lang
+north-currency
 ```
 
-This means each person who opens the app has their own separate data on their own browser.
+This means each browser has its own workspace unless Supabase sync is enabled.
 
 ## Supabase Setup
 
-Create a `.env` file using `.env.example`:
+The app can run without Supabase. To enable authentication and cloud sync, create a `.env` file based on `.env.example`:
 
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-Create this table in Supabase:
+Create the user data table:
 
 ```sql
 create table public.north_user_data (
@@ -186,11 +237,9 @@ using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 ```
 
-Without these environment variables, North stays fully usable in local mode.
+## Supabase E2E Validation
 
-### Supabase End-to-End Test
-
-To verify the full cloud sync flow, add a real test account to your local `.env` file:
+To test cloud sync locally, add test credentials to `.env`:
 
 ```bash
 SUPABASE_E2E_EMAIL=your-test-user@example.com
@@ -203,42 +252,33 @@ Then run:
 npm run test:supabase:e2e
 ```
 
-The test creates or signs into the test account, adds sample North data, simulates a reload, signs out, signs back in, confirms the data is synced from Supabase, and restores the previous data afterwards.
+The script signs in or creates a test account, writes sample workspace data, simulates a reload, signs out, signs back in, validates cloud recovery and restores previous data.
 
-If Supabase requires email confirmation, confirm the test account email first and run the command again.
+## Accessibility and Responsiveness
 
-## Responsive Design
+The interface includes:
 
-North is designed to work across:
-
-- Mobile phones
-- Tablets
-- Desktop screens
-
-The layout uses:
-
-- Sidebar navigation on larger screens
-- Bottom navigation on mobile
-- Compact cards and panels
-- Responsive grids
-- Touch-friendly buttons
-
-## Accessibility Notes
-
-The app includes:
-
-- Semantic buttons
-- Accessible labels for icon buttons
-- Clear focusable controls
-- Readable contrast in light and dark modes
-- Form labels for quick-add inputs
+- Semantic buttons and labelled form controls
+- Touch-friendly controls for mobile use
+- Responsive grid layouts
+- Mobile bottom navigation
+- Desktop sidebar navigation
+- Light and dark themes
+- Clear empty states for first-time users
+- Custom controls where native mobile rendering would reduce consistency
 
 ## Future Improvements
 
-Possible next steps:
+Potential next steps:
 
-- Convert the app into an installable PWA
+- Installable PWA support
+- Richer analytics for finance trends
+- Recurring finance movements
+- Project deadlines and reminders
+- Drag-and-drop improvements for project boards
+- More currencies and locale-specific preferences
+- Automated component and interaction tests
 
 ## Credits
 
-Created by **silvicodes** · **ReadyCreation**
+Designed and built by **silvicodes**.
