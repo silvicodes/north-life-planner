@@ -5,6 +5,7 @@ import type { AppData, Frequency, PriorityKey, ProjectLifecycleStatus, ProjectPa
 const DATA_KEY = "north-data";
 export const LANG_KEY = "north-lang";
 export const THEME_KEY = "north-theme";
+export const CURRENCY_KEY = "north-currency";
 
 export function normalizeData(data: Partial<AppData>): AppData {
   return {

@@ -30,13 +30,14 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { addDays, dateKey, formatToday, monthGridDays, startOfWeek, todayKey } from "./lib/date";
-import { clearLocalData, findItem, LANG_KEY, loadData, parseImportedData, saveData, THEME_KEY } from "./lib/storage";
+import { clearLocalData, CURRENCY_KEY, findItem, LANG_KEY, loadData, parseImportedData, saveData, THEME_KEY } from "./lib/storage";
 import { isSupabaseConfigured, loadCloudData, saveCloudData, supabase } from "./lib/supabase";
 import { emptyData } from "./types";
 import type {
   AppData,
   Budget,
   CalendarMode,
+  Currency,
   EventItem,
   Frequency,
   Goal,
@@ -80,6 +81,7 @@ type ToastState = {
   message: string;
   tone: "success" | "info";
 } | null;
+const currencies: Currency[] = ["EUR", "GBP", "USD"];
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -116,6 +118,10 @@ function App() {
   const [data, setData] = useState<AppData>(loadData);
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem(LANG_KEY) === "en" ? "en" : "es"));
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"));
+  const [currency, setCurrency] = useState<Currency>(() => {
+    const saved = localStorage.getItem(CURRENCY_KEY);
+    return saved === "GBP" || saved === "USD" ? saved : "EUR";
+  });
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
@@ -133,10 +139,10 @@ function App() {
     () =>
       new Intl.NumberFormat(t.locale, {
         style: "currency",
-        currency: "EUR",
+        currency,
         maximumFractionDigits: 0,
       }),
-    [t.locale],
+    [currency, t.locale],
   );
 
   const navItems = useMemo(
@@ -192,6 +198,10 @@ function App() {
     document.documentElement.lang = lang;
     localStorage.setItem(LANG_KEY, lang);
   }, [lang]);
+
+  useEffect(() => {
+    localStorage.setItem(CURRENCY_KEY, currency);
+  }, [currency]);
 
   useEffect(() => {
     if (!toast) return;
@@ -534,6 +544,7 @@ function App() {
         <QuickAdd
           type={quickType}
           t={t}
+          currency={currency}
           editingItem={editingItem}
           isEditing={Boolean(editingId)}
           onSelect={setQuickType}
@@ -546,11 +557,13 @@ function App() {
           t={t}
           lang={lang}
           theme={theme}
+          currency={currency}
           authUser={authUser}
           syncStatus={syncStatus}
           supabaseEnabled={isSupabaseConfigured}
           onLangChange={setLang}
           onThemeChange={setTheme}
+          onCurrencyChange={setCurrency}
           onExport={exportData}
           onImport={() => importInputRef.current?.click()}
           onClearLocalData={handleClearLocalData}
@@ -1738,11 +1751,13 @@ function SettingsDialog({
   t,
   lang,
   theme,
+  currency,
   authUser,
   syncStatus,
   supabaseEnabled,
   onLangChange,
   onThemeChange,
+  onCurrencyChange,
   onExport,
   onImport,
   onClearLocalData,
@@ -1752,11 +1767,13 @@ function SettingsDialog({
   t: (typeof copy)[Lang];
   lang: Lang;
   theme: Theme;
+  currency: Currency;
   authUser: User | null;
   syncStatus: SyncStatus;
   supabaseEnabled: boolean;
   onLangChange: Dispatch<SetStateAction<Lang>>;
   onThemeChange: Dispatch<SetStateAction<Theme>>;
+  onCurrencyChange: Dispatch<SetStateAction<Currency>>;
   onExport: () => void;
   onImport: () => void;
   onClearLocalData: () => void;
@@ -1786,6 +1803,17 @@ function SettingsDialog({
           <div className="segmented-control settings-segment">
             <button className={theme === "light" ? "active" : ""} onClick={() => onThemeChange("light")}>{t.lightTheme}</button>
             <button className={theme === "dark" ? "active" : ""} onClick={() => onThemeChange("dark")}>{t.darkTheme}</button>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>{t.currency}</h3>
+          <div className="segmented-control settings-segment currency-segment">
+            {currencies.map((item) => (
+              <button className={currency === item ? "active" : ""} key={item} onClick={() => onCurrencyChange(item)}>
+                {t.currencies[item]}
+              </button>
+            ))}
           </div>
         </section>
 

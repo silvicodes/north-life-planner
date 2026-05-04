@@ -3,13 +3,14 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import type { Copy } from "../i18n/copy";
 import { todayKey } from "../lib/date";
-import type { Budget, EventItem, ExpenseKind, Goal, Habit, Movement, QuickType, Task } from "../types";
+import type { Budget, Currency, EventItem, ExpenseKind, Goal, Habit, Movement, QuickType, Task } from "../types";
 
 type EditableItem = Budget | EventItem | Goal | Habit | Movement | Task | null;
 
 export function QuickAdd({
   type,
   t,
+  currency,
   editingItem,
   isEditing,
   onSelect,
@@ -18,6 +19,7 @@ export function QuickAdd({
 }: {
   type: QuickType;
   t: Copy;
+  currency: Currency;
   editingItem: EditableItem;
   isEditing: boolean;
   onSelect: (type: QuickType) => void;
@@ -176,10 +178,10 @@ export function QuickAdd({
                   </label>
                   <div className="split-preview">
                     <span>
-                      {t.labels.yourShare}: {formatAmount(ownerAmount)}
+                      {t.labels.yourShare}: {formatAmount(ownerAmount, t.locale, currency)}
                     </span>
                     <span>
-                      {t.labels.otherShare}: {formatAmount(otherAmount)}
+                      {t.labels.otherShare}: {formatAmount(otherAmount, t.locale, currency)}
                     </span>
                   </div>
                 </section>
@@ -261,10 +263,10 @@ export function QuickAdd({
   );
 }
 
-function formatAmount(value: number) {
-  return new Intl.NumberFormat(undefined, {
+function formatAmount(value: number, locale: string, currency: Currency) {
+  return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "EUR",
+    currency,
     maximumFractionDigits: 2,
   }).format(value);
 }

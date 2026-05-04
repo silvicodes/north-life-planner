@@ -1,6 +1,7 @@
 export type Section = "inicio" | "finanzas" | "proyectos" | "estudios" | "dia" | "calendario" | "objetivos";
 export type Lang = "es" | "en";
 export type Theme = "light" | "dark";
+export type Currency = "EUR" | "GBP" | "USD";
 export type PriorityKey = "high" | "medium" | "low";
 export type Frequency = "daily" | "weekly" | "monthly";
 export type CalendarMode = "day" | "week" | "month";
