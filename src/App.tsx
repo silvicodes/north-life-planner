@@ -4,6 +4,8 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   Cloud,
   Clock3,
@@ -89,6 +91,17 @@ function createId() {
 
 function currentMonthKey() {
   return todayKey().slice(0, 7);
+}
+
+function shiftMonthKey(monthKey: string, offset: number) {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1 + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function formatMonthLabel(monthKey: string, locale: string) {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
 }
 
 function sharedOwnAmount(movement: Movement) {
@@ -865,7 +878,7 @@ function MonthlyExpenseSummary({
   return (
     <div className="monthly-expenses">
       <div className="finance-toolbar">
-        <input type="month" value={selectedMonth} onChange={(event) => onMonthChange(event.target.value)} aria-label={t.labels.monthSelector} />
+        <MonthPicker t={t} selectedMonth={selectedMonth} onMonthChange={onMonthChange} />
       </div>
       {monthlyExpenses.length ? (
         <>
@@ -928,7 +941,7 @@ function MovementFilters({
     <div className="movement-filters" aria-label={t.labels.movementFilters}>
       <label>
         <span>{t.labels.monthSelector}</span>
-        <input type="month" value={selectedMonth} onChange={(event) => onMonthChange(event.target.value)} />
+        <MonthPicker t={t} selectedMonth={selectedMonth} onMonthChange={onMonthChange} compact />
       </label>
       <label>
         <span>{t.labels.filterByCategory}</span>
@@ -2039,6 +2052,32 @@ function TaskList({
           />
         </div>
       ))}
+    </div>
+  );
+}
+
+function MonthPicker({
+  t,
+  selectedMonth,
+  onMonthChange,
+  compact = false,
+}: {
+  t: (typeof copy)[Lang];
+  selectedMonth: string;
+  onMonthChange: Dispatch<SetStateAction<string>>;
+  compact?: boolean;
+}) {
+  const label = formatMonthLabel(selectedMonth, t.locale);
+
+  return (
+    <div className={`month-picker ${compact ? "compact" : ""}`} aria-label={t.labels.monthSelector}>
+      <button type="button" onClick={() => onMonthChange(shiftMonthKey(selectedMonth, -1))} aria-label="Previous month">
+        <ChevronLeft size={18} />
+      </button>
+      <span>{label}</span>
+      <button type="button" onClick={() => onMonthChange(shiftMonthKey(selectedMonth, 1))} aria-label="Next month">
+        <ChevronRight size={18} />
+      </button>
     </div>
   );
 }
