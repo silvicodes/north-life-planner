@@ -584,6 +584,29 @@ button {
   transform: translateY(-1px);
 }
 
+.home-first-steps {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--panel) 92%, var(--accent-soft));
+  box-shadow: 0 18px 45px var(--shadow);
+}
+
+.home-first-steps h2 {
+  margin: 4px 0 0;
+  font-size: 1.2rem;
+  line-height: 1.12;
+}
+
+.home-first-steps .onboarding-actions {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  min-width: min(620px, 60%);
+}
+
 .metric {
   align-items: flex-start;
   flex-direction: column;
@@ -2226,8 +2249,19 @@ button {
   }
 
   .onboarding-panel,
-  .onboarding-actions {
+  .onboarding-actions,
+  .home-first-steps {
     grid-template-columns: 1fr;
+  }
+
+  .home-first-steps {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .home-first-steps .onboarding-actions {
+    min-width: 0;
   }
 
   .hero-stats,

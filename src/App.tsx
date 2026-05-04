@@ -29,6 +29,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { addDays, dateKey, formatToday, monthGridDays, startOfWeek, todayKey } from "./lib/date";
@@ -60,7 +61,6 @@ import type {
 import { copy } from "./i18n/copy";
 import type { User } from "@supabase/supabase-js";
 import { ConfirmDialog, EmptyState, ItemActions, Metric, MetricRow, Panel, PriorityPill, ProgressRing } from "./components/common";
-import { Onboarding } from "./components/Onboarding";
 import { QuickAdd } from "./components/QuickAdd";
 
 const icons = {
@@ -84,6 +84,7 @@ type ToastState = {
   tone: "success" | "info";
 } | null;
 const currencies: Currency[] = ["EUR", "GBP", "USD"];
+type FirstStepAction = { type: QuickType; icon: LucideIcon; label: string };
 
 function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -652,6 +653,11 @@ function HomeView({
 }: ViewProps) {
   const todayTasks = data.tasks.filter((task) => task.areaKey === "dia");
   const completedHabits = data.habits.filter((habit) => habit.history.includes(todayKey())).length;
+  const firstStepActions: FirstStepAction[] = [];
+  if (todayTasks.length === 0) firstStepActions.push({ type: "task", icon: ListTodo, label: t.onboarding.actions.task });
+  if (data.movements.length === 0) firstStepActions.push({ type: "expense", icon: CircleDollarSign, label: t.onboarding.actions.expense });
+  if (data.habits.length === 0) firstStepActions.push({ type: "habit", icon: Flame, label: t.onboarding.actions.habit });
+  const showFirstSteps = firstStepActions.length >= 2;
 
   return (
     <>
@@ -667,12 +673,12 @@ function HomeView({
         title={t.labels.todayTasks}
         icon={ListTodo}
         className="span-7 panel-featured"
-        action={
+        action={!showFirstSteps ? (
           <button className="primary-button compact" onClick={() => openQuick("task")}>
             <Plus size={18} />
             {t.labels.addTask}
           </button>
-        }
+        ) : undefined}
       >
         {todayTasks.length ? (
           <TaskList t={t} tasks={todayTasks} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
@@ -693,11 +699,45 @@ function HomeView({
       >
         {data.habits.length ? (
           <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} deleteItem={deleteItem} />
+        ) : showFirstSteps ? (
+          <GuidedState title={t.labels.todayHabitsGuideTitle} body={t.labels.todayHabitsGuideBody} />
         ) : (
           <GuidedState title={t.labels.todayHabitsGuideTitle} body={t.labels.todayHabitsGuideBody} actionLabel={t.labels.addHabit} onAction={() => openQuick("habit")} />
         )}
       </Panel>
+
+      {showFirstSteps && <HomeFirstSteps t={t} actions={firstStepActions} openQuick={openQuick} />}
     </>
+  );
+}
+
+function HomeFirstSteps({
+  t,
+  actions,
+  openQuick,
+}: {
+  t: (typeof copy)[Lang];
+  actions: FirstStepAction[];
+  openQuick: (type?: QuickType, id?: string) => void;
+}) {
+  return (
+    <section className="home-first-steps span-12" aria-labelledby="home-first-steps-title">
+      <div>
+        <p className="eyebrow">{t.onboarding.eyebrow}</p>
+        <h2 id="home-first-steps-title">{t.onboarding.title}</h2>
+      </div>
+      <div className="onboarding-actions">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          return (
+            <button key={action.type} onClick={() => openQuick(action.type)}>
+              <Icon size={18} />
+              <span>{action.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
