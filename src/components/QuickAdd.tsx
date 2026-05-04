@@ -1,4 +1,4 @@
-import { CalendarDays, PiggyBank, ReceiptText, Target, User, Users, X } from "lucide-react";
+import { BookOpen, CalendarDays, CircleDollarSign, Flame, ListTodo, PiggyBank, ReceiptText, Target, User, Users, X } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import type { Copy } from "../i18n/copy";
@@ -13,7 +13,6 @@ export function QuickAdd({
   currency,
   editingItem,
   isEditing,
-  onSelect,
   onSave,
   onClose,
 }: {
@@ -22,11 +21,9 @@ export function QuickAdd({
   currency: Currency;
   editingItem: EditableItem;
   isEditing: boolean;
-  onSelect: (type: QuickType) => void;
   onSave: (type: QuickType, payload: Record<string, FormDataEntryValue>) => void;
   onClose: () => void;
 }) {
-  const typeLabels = t.quick;
   const values = formValuesFor(type, editingItem);
   const [expenseKind, setExpenseKind] = useState<ExpenseKind>((values.expenseKind as ExpenseKind) || "individual");
   const [amountValue, setAmountValue] = useState(values.amount || "");
@@ -37,8 +34,6 @@ export function QuickAdd({
   const ownerShareNumber = Number(ownerShareValue) || 0;
   const ownerAmount = amountNumber * (ownerShareNumber / 100);
   const otherAmount = Math.max(0, amountNumber - ownerAmount);
-  const importantType = type === "expense" || type === "budget" || type === "event" || type === "goal";
-  const showTypePicker = !isEditing && !importantType;
   const modalMeta = modalMetaFor(type, t, isEditing);
   const ModalIcon = modalMeta.icon;
 
@@ -71,33 +66,22 @@ export function QuickAdd({
 
   return (
     <div className="modal-layer" role="dialog" aria-modal="true" aria-labelledby="quick-title">
-      <div className={`quick-modal ${importantType ? "context-modal" : ""}`}>
+      <div className="quick-modal context-modal">
         <header>
           <div className="modal-title-block">
-            {importantType && (
-              <span className="modal-icon">
-                <ModalIcon size={18} />
-              </span>
-            )}
+            <span className="modal-icon">
+              <ModalIcon size={18} />
+            </span>
             <div>
               <h2 id="quick-title">{modalMeta.title}</h2>
-              {importantType && <p>{modalMeta.body}</p>}
+              <p>{modalMeta.body}</p>
             </div>
           </div>
           <button className="icon-button" onClick={onClose} aria-label={t.closeMenu}>
             <X size={19} />
           </button>
         </header>
-        {showTypePicker && (
-          <div className="quick-grid type-picker">
-            {(Object.keys(typeLabels) as QuickType[]).map((item) => (
-              <button className={type === item ? "selected" : ""} key={item} onClick={() => onSelect(item)}>
-                {typeLabels[item]}
-              </button>
-            ))}
-          </div>
-        )}
-        <form className={`quick-form ${importantType ? "context-form" : ""}`} onSubmit={handleSubmit}>
+        <form className="quick-form context-form" onSubmit={handleSubmit}>
           <label>
             <span>{t.title}</span>
             <input name="title" required placeholder={placeholderFor(type, t)} defaultValue={values.title} />
@@ -201,7 +185,7 @@ export function QuickAdd({
                 <input name="time" type="time" defaultValue={values.time} />
               </label>
               <label>
-                <span>{t.progress}</span>
+                <span>{t.priorityLabel}</span>
                 <select name="priority" defaultValue={values.priority || "medium"}>
                   <option value="high">{t.priorities.high}</option>
                   <option value="medium">{t.priorities.medium}</option>
@@ -272,6 +256,18 @@ function formatAmount(value: number, locale: string, currency: Currency) {
 }
 
 function modalMetaFor(type: QuickType, t: Copy, isEditing: boolean) {
+  if (type === "task") {
+    return { title: isEditing ? t.editTask : t.addTask, body: t.taskModalBody, icon: ListTodo };
+  }
+  if (type === "studyTask") {
+    return { title: isEditing ? t.editStudyTask : t.addStudyTask, body: t.studyTaskModalBody, icon: BookOpen };
+  }
+  if (type === "habit") {
+    return { title: isEditing ? t.editHabit : t.addHabit, body: t.habitModalBody, icon: Flame };
+  }
+  if (type === "income") {
+    return { title: isEditing ? t.editIncome : t.addIncome, body: t.incomeModalBody, icon: CircleDollarSign };
+  }
   if (type === "expense") {
     return { title: isEditing ? t.editExpense : t.addExpense, body: t.expenseModalBody, icon: ReceiptText };
   }
@@ -284,7 +280,7 @@ function modalMetaFor(type: QuickType, t: Copy, isEditing: boolean) {
   if (type === "goal") {
     return { title: isEditing ? t.editGoal : t.addGoal, body: t.goalModalBody, icon: Target };
   }
-  return { title: t.addQuick, body: "", icon: ReceiptText };
+  return { title: t.addQuick, body: t.taskModalBody, icon: ListTodo };
 }
 
 function placeholderFor(type: QuickType, t: Copy) {
