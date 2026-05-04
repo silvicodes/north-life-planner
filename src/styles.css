@@ -478,9 +478,7 @@ button {
 }
 
 .today-hero {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
   gap: 18px;
   padding: 24px;
   border: 1px solid color-mix(in srgb, var(--accent-border) 70%, var(--border));
@@ -1117,6 +1115,7 @@ button {
 .project-empty,
 .project-list-empty {
   display: grid;
+  min-width: 0;
 }
 
 .project-list {
@@ -1285,10 +1284,12 @@ button {
 .kanban-board {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(4, minmax(190px, 1fr));
+  grid-template-columns: repeat(4, minmax(170px, 1fr));
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding: 0 2px 4px;
 }
 
 .kanban-column {
@@ -1363,7 +1364,9 @@ button {
 }
 
 .project-task-actions select {
+  min-width: 0;
   min-height: 36px;
+  padding-right: 30px;
 }
 
 .kanban-empty,
@@ -1736,15 +1739,19 @@ button {
   inset: 0;
   z-index: 40;
   display: grid;
-  place-items: end center;
+  place-items: center;
   padding: 20px;
   background: rgba(35, 32, 27, 0.36);
+  overflow: auto;
 }
 
 .quick-modal,
 .confirm-modal,
 .settings-modal {
   width: min(520px, 100%);
+  max-height: min(760px, calc(100dvh - 40px));
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 18px;
   border-radius: 22px;
   background: var(--panel-solid);
@@ -2185,8 +2192,6 @@ button {
   }
 
   .today-hero {
-    align-items: stretch;
-    flex-direction: column;
     padding: 18px;
     border-radius: 16px;
   }
@@ -2202,7 +2207,7 @@ button {
 
   .guided-state {
     min-height: 164px;
-    justify-items: stretch;
+    justify-items: start;
     text-align: left;
   }
 
@@ -2248,6 +2253,20 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .modal-layer {
+    align-items: start;
+    padding: 10px;
+    padding-top: calc(10px + env(safe-area-inset-top));
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .quick-modal,
+  .settings-modal {
+    max-height: calc(100dvh - 20px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    border-radius: 18px;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .task,
   .movement,
   .budget-topline {
@@ -2290,7 +2309,9 @@ button {
   }
 
   .kanban-board {
-    grid-template-columns: repeat(4, minmax(240px, 82vw));
+    grid-template-columns: repeat(4, minmax(250px, 82vw));
+    margin-inline: -2px;
+    padding-inline: 2px;
   }
 
   .toast {
