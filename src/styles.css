@@ -2169,10 +2169,7 @@ button {
   }
 
   .bottom-nav {
-    position: sticky;
-    right: 10px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    left: 10px;
+    position: static;
     z-index: 24;
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -2184,7 +2181,7 @@ button {
     box-shadow: 0 14px 40px var(--shadow);
     backdrop-filter: blur(18px);
     width: calc(100% - 20px);
-    margin: 18px 10px calc(16px + env(safe-area-inset-bottom));
+    margin: 18px 10px calc(22px + env(safe-area-inset-bottom));
   }
 
   .bottom-nav button {
