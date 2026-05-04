@@ -525,10 +525,6 @@ function App() {
         </footer>
       </main>
 
-      <button className="fab" onClick={() => openQuick("task")} aria-label={t.labels.addTask}>
-        <Plus size={23} />
-      </button>
-
       <nav className="bottom-nav" aria-label="Principal móvil">
         {navItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
@@ -665,10 +661,6 @@ function HomeView({
           <h2>{t.labels.todayFocusTitle}</h2>
           <p>{t.labels.todayFocusBody}</p>
         </div>
-        <button className="primary-button today-primary-action" onClick={() => openQuick("task")}>
-          <Plus size={18} />
-          {t.labels.addTask}
-        </button>
       </section>
 
       <Panel
@@ -685,7 +677,7 @@ function HomeView({
         {todayTasks.length ? (
           <TaskList t={t} tasks={todayTasks} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
         ) : (
-          <GuidedState title={t.labels.todayTasksGuideTitle} body={t.labels.todayTasksGuideBody} actionLabel={t.labels.addTask} onAction={() => openQuick("task")} />
+          <GuidedState title={t.labels.todayTasksGuideTitle} body={t.labels.todayTasksGuideBody} />
         )}
       </Panel>
 
@@ -709,15 +701,17 @@ function HomeView({
   );
 }
 
-function GuidedState({ title, body, actionLabel, onAction }: { title: string; body: string; actionLabel: string; onAction: () => void }) {
+function GuidedState({ title, body, actionLabel, onAction }: { title: string; body: string; actionLabel?: string; onAction?: () => void }) {
   return (
     <div className="guided-state">
       <strong>{title}</strong>
       <span>{body}</span>
-      <button className="ghost-button" onClick={onAction}>
-        <Plus size={16} />
-        {actionLabel}
-      </button>
+      {actionLabel && onAction && (
+        <button className="ghost-button" onClick={onAction}>
+          <Plus size={16} />
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }
