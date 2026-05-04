@@ -1983,8 +1983,13 @@ button {
     overflow-x: hidden;
   }
 
+  .app-shell {
+    display: block;
+    min-height: 100dvh;
+  }
+
   .content {
-    padding: 16px 14px calc(150px + env(safe-area-inset-bottom));
+    padding: 16px 14px 24px;
   }
 
   .topbar {
@@ -2003,7 +2008,7 @@ button {
   .page-grid {
     grid-template-columns: 1fr;
     gap: 12px;
-    padding-bottom: calc(210px + env(safe-area-inset-bottom));
+    padding-bottom: 28px;
   }
 
   .span-4,
@@ -2164,7 +2169,7 @@ button {
   }
 
   .bottom-nav {
-    position: fixed;
+    position: sticky;
     right: 10px;
     bottom: calc(10px + env(safe-area-inset-bottom));
     left: 10px;
@@ -2178,6 +2183,8 @@ button {
     background: color-mix(in srgb, var(--panel-solid) 94%, transparent);
     box-shadow: 0 14px 40px var(--shadow);
     backdrop-filter: blur(18px);
+    width: calc(100% - 20px);
+    margin: 18px 10px calc(16px + env(safe-area-inset-bottom));
   }
 
   .bottom-nav button {
@@ -2204,6 +2211,6 @@ button {
 
   .app-footer {
     flex-wrap: wrap;
-    margin: -76px auto calc(150px + env(safe-area-inset-bottom));
+    margin: 8px auto 18px;
   }
 }
