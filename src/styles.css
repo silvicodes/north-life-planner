@@ -75,6 +75,13 @@ button {
   overflow-wrap: break-word;
 }
 
+html,
+body,
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -479,6 +486,7 @@ button {
 
 .today-hero {
   display: grid;
+  min-width: 0;
   gap: 18px;
   padding: 24px;
   border: 1px solid color-mix(in srgb, var(--accent-border) 70%, var(--border));
@@ -490,16 +498,20 @@ button {
 }
 
 .today-hero h2 {
+  min-width: 0;
   max-width: 680px;
   margin: 0;
   font-size: clamp(2rem, 4vw, 3.7rem);
   line-height: 1;
+  overflow-wrap: anywhere;
 }
 
 .today-hero p:not(.eyebrow) {
+  min-width: 0;
   max-width: 760px;
   margin: 12px 0 0;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .today-primary-action {
@@ -588,6 +600,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-width: 0;
   gap: 18px;
   padding: 18px;
   border: 1px solid var(--border);
@@ -604,6 +617,7 @@ button {
 
 .home-first-steps .onboarding-actions {
   grid-template-columns: repeat(3, minmax(180px, 1fr));
+  width: min(620px, 100%);
   min-width: min(620px, 60%);
 }
 
@@ -2148,6 +2162,8 @@ button {
 
   .content {
     padding: 16px 14px calc(56px + env(safe-area-inset-bottom));
+    max-width: 100%;
+    overflow-x: clip;
   }
 
   .topbar {
@@ -2166,6 +2182,9 @@ button {
   .page-grid {
     grid-template-columns: 1fr;
     gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
     padding-bottom: 28px;
   }
 
@@ -2179,7 +2198,13 @@ button {
 
   .panel,
   .hero-panel,
-  .onboarding-panel {
+  .onboarding-panel,
+  .today-hero,
+  .home-first-steps {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
     border-radius: 16px;
   }
 
@@ -2215,12 +2240,20 @@ button {
   }
 
   .today-hero {
-    padding: 18px;
+    padding: 16px;
     border-radius: 16px;
   }
 
   .today-hero h2 {
-    font-size: clamp(2.1rem, 11vw, 3rem);
+    max-width: 100%;
+    font-size: clamp(2rem, 10vw, 2.75rem);
+    line-height: 1.02;
+  }
+
+  .today-hero p:not(.eyebrow) {
+    max-width: 100%;
+    font-size: 1rem;
+    line-height: 1.35;
   }
 
   .today-primary-action {
@@ -2261,6 +2294,8 @@ button {
   }
 
   .home-first-steps .onboarding-actions {
+    grid-template-columns: 1fr;
+    width: 100%;
     min-width: 0;
   }
 
