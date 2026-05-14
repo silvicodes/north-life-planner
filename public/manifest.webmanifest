@@ -1,0 +1,17 @@
+{
+  "name": "North Planner",
+  "short_name": "North",
+  "description": "Personal planning, finance, projects and daily organization.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#151816",
+  "theme_color": "#1f332e",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

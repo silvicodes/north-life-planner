@@ -1,6 +1,6 @@
 import { todayKey } from "./date";
 import { emptyData } from "../types";
-import type { AppData, Frequency, PriorityKey, ProjectLifecycleStatus, ProjectPaymentStatus, ProjectStatus, QuickType } from "../types";
+import type { AppData, Frequency, PriorityKey, ProjectLifecycleStatus, ProjectPaymentStatus, ProjectStatus, QuickType, Recurrence } from "../types";
 
 const DATA_KEY = "north-data";
 export const LANG_KEY = "north-lang";
@@ -15,6 +15,8 @@ export function normalizeData(data: Partial<AppData>): AppData {
       areaKey: task.areaKey === "estudios" ? "estudios" : "dia",
       time: text(task.time),
       priority: priority(task.priority),
+      recurrence: recurrence(task.recurrence),
+      tags: tags(task.tags),
     })),
     movements: ensureArray(data.movements).map((movement) => ({
       id: text(movement.id),
@@ -27,12 +29,15 @@ export function normalizeData(data: Partial<AppData>): AppData {
       sharedWith: text(movement.sharedWith),
       ownerSharePercent: Math.min(100, Math.max(0, number(movement.ownerSharePercent || 100))),
       paidBy: movement.paidBy === "other" ? "other" : "me",
+      tags: tags(movement.tags),
     })),
     events: ensureArray(data.events).map((event) => ({
       id: text(event.id),
       title: text(event.title),
       date: text(event.date),
       time: text(event.time),
+      recurrence: recurrence(event.recurrence),
+      tags: tags(event.tags),
     })),
     goals: ensureArray(data.goals).map((goal) => ({
       id: text(goal.id),
@@ -40,6 +45,7 @@ export function normalizeData(data: Partial<AppData>): AppData {
       area: text(goal.area),
       progress: Math.min(100, Math.max(0, number(goal.progress))),
       target: text(goal.target),
+      tags: tags(goal.tags),
     })),
     budgets: ensureArray(data.budgets).map((budget) => ({
       id: text(budget.id),
@@ -58,6 +64,8 @@ export function normalizeData(data: Partial<AppData>): AppData {
       estimatedHours: number(project.estimatedHours),
       actualHours: number(project.actualHours),
       notes: text(project.notes),
+      links: ensureArray(project.links).map((item) => text(item)).filter(Boolean),
+      tags: tags(project.tags),
       tasks: ensureArray(project.tasks).map((task) => ({
         id: text(task.id),
         title: text(task.title),
@@ -135,6 +143,15 @@ function priority(value: unknown): PriorityKey {
 
 function frequency(value: unknown): Frequency {
   return value === "weekly" || value === "monthly" ? value : "daily";
+}
+
+function recurrence(value: unknown): Recurrence {
+  if (value === "daily" || value === "weekly" || value === "monthly") return value;
+  return "none";
+}
+
+function tags(value: unknown) {
+  return ensureArray(value as string[] | undefined).map((item) => text(item).trim()).filter(Boolean);
 }
 
 function projectStatus(value: unknown): ProjectStatus {
