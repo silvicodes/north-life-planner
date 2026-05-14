@@ -1018,18 +1018,10 @@ function FinanceView({ t, data, money, currency, setCurrency, openQuick, deleteI
         title={t.labels.monthFinance}
         icon={Users}
         className="span-7"
-        action={
-          <button className="primary-button compact" onClick={() => openQuick("expense")}>
-            <Plus size={16} />
-            {t.labels.addExpense}
-          </button>
-        }
       >
         <MonthlyExpenseSummary
           t={t}
           money={money}
-          selectedMonth={selectedMonth}
-          onMonthChange={setSelectedMonth}
           monthlyTotal={monthlyTotal}
           individualTotal={individualTotal}
           sharedTotal={sharedTotal}
@@ -1173,8 +1165,6 @@ function FinanceKpi({ label, value, tone }: { label: string; value: string; tone
 function MonthlyExpenseSummary({
   t,
   money,
-  selectedMonth,
-  onMonthChange,
   monthlyTotal,
   individualTotal,
   sharedTotal,
@@ -1185,8 +1175,6 @@ function MonthlyExpenseSummary({
 }: {
   t: (typeof copy)[Lang];
   money: Intl.NumberFormat;
-  selectedMonth: string;
-  onMonthChange: Dispatch<SetStateAction<string>>;
   monthlyTotal: number;
   individualTotal: number;
   sharedTotal: number;
@@ -1203,9 +1191,6 @@ function MonthlyExpenseSummary({
 
   return (
     <div className="monthly-expenses">
-      <div className="finance-toolbar">
-        <MonthPicker t={t} selectedMonth={selectedMonth} onMonthChange={onMonthChange} />
-      </div>
       {monthlyExpenses.length ? (
         <>
           <div className="monthly-summary-grid">

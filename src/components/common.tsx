@@ -69,6 +69,9 @@ export function EmptyState({
 }) {
   return (
     <div className="empty-state">
+      <span className="empty-state-mark">
+        <Plus size={14} />
+      </span>
       <strong>{title ?? t.empty.title}</strong>
       <span>{message ?? t.empty.body}</span>
       <button className="ghost-button" onClick={() => openQuick(type)}>

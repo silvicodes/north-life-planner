@@ -865,17 +865,17 @@ button {
 .guided-state {
   display: grid;
   justify-items: start;
-  gap: 10px;
-  min-height: 184px;
+  gap: 8px;
+  min-height: 140px;
   align-content: center;
-  padding: 20px;
+  padding: 16px;
   border: 1px dashed var(--border-strong);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  background: color-mix(in srgb, var(--surface) 58%, transparent);
 }
 
 .guided-state strong {
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .guided-state span {
@@ -998,9 +998,9 @@ button {
 .finance-overview {
   display: grid;
   grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1fr);
-  gap: 18px;
+  gap: 16px;
   align-items: start;
-  padding: 22px;
+  padding: 20px;
   border: 1px solid color-mix(in srgb, var(--accent-border) 70%, var(--border));
   border-radius: var(--radius-lg);
   background:
@@ -1017,7 +1017,7 @@ button {
 
 .finance-overview-copy h2 {
   margin: 0;
-  font-size: clamp(2rem, 4vw, 3.65rem);
+  font-size: clamp(1.9rem, 3.6vw, 3.25rem);
   line-height: 0.98;
   font-weight: 860;
   overflow-wrap: anywhere;
@@ -1074,15 +1074,15 @@ button {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .finance-kpi {
   display: grid;
-  gap: 7px;
-  min-height: 86px;
+  gap: 6px;
+  min-height: 74px;
   align-content: center;
-  padding: 13px;
+  padding: 11px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel-solid) 88%, transparent);
@@ -1131,9 +1131,9 @@ button {
 
 .auth-shell {
   display: grid;
-  grid-template-columns: minmax(300px, 0.9fr) minmax(340px, 460px);
+  grid-template-columns: minmax(280px, 0.82fr) minmax(360px, 440px);
   gap: 16px;
-  width: min(920px, 100%);
+  width: min(860px, 100%);
 }
 
 .auth-hero,
@@ -1149,8 +1149,8 @@ button {
   display: grid;
   align-content: space-between;
   gap: 28px;
-  min-height: 440px;
-  padding: 28px;
+  min-height: 400px;
+  padding: 24px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--accent-soft) 58%, transparent), transparent 52%),
     var(--panel);
@@ -1159,7 +1159,7 @@ button {
 .auth-hero h1 {
   max-width: 520px;
   margin: 0;
-  font-size: clamp(2rem, 3.8vw, 3.35rem);
+  font-size: clamp(1.9rem, 3.4vw, 2.9rem);
   line-height: 1.02;
   font-weight: 840;
 }
@@ -1189,7 +1189,7 @@ button {
   display: grid;
   gap: 14px;
   align-content: start;
-  padding: 22px;
+  padding: 24px;
 }
 
 .auth-entry-toolbar {
@@ -1206,7 +1206,7 @@ button {
 
 .auth-entry-card .auth-card-header {
   align-items: flex-start;
-  padding-bottom: 12px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1217,7 +1217,7 @@ button {
 
 .auth-entry-card .auth-form {
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 14px;
 }
 
 .auth-entry-card .form-actions {
@@ -1359,12 +1359,17 @@ button {
 
 .auth-form input {
   width: 100%;
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: 46px;
+  padding: 0 13px;
   border: 1px solid var(--border-strong);
-  border-radius: 11px;
+  border-radius: 12px;
   color: var(--text);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--panel-solid) 86%, transparent);
+}
+
+.auth-form input:focus {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-strong));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-soft) 70%, transparent);
 }
 
 .auth-form .form-actions,
@@ -2046,16 +2051,16 @@ button {
 
 .monthly-summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .monthly-summary-grid .metric-row {
   display: grid;
   align-content: center;
-  gap: 5px;
-  min-height: 92px;
-  padding: 12px;
+  gap: 4px;
+  min-height: 74px;
+  padding: 11px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
@@ -2292,20 +2297,34 @@ button {
 
 .empty-state {
   display: grid;
-  gap: 10px;
-  min-height: 154px;
+  gap: 8px;
+  min-height: 128px;
   place-items: center;
-  padding: 18px;
-  border: 1px dashed var(--border-strong);
+  padding: 16px;
+  border: 1px dashed color-mix(in srgb, var(--border-strong) 72%, transparent);
   border-radius: 13px;
-  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  background: color-mix(in srgb, var(--surface) 52%, transparent);
   text-align: center;
+}
+
+.empty-state-mark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.empty-state strong {
+  font-size: 0.98rem;
 }
 
 .empty-state span {
   max-width: 340px;
   color: var(--muted);
-  font-size: 0.9rem;
+  font-size: 0.86rem;
 }
 
 .week-strip {
@@ -2391,7 +2410,7 @@ button {
   max-height: min(760px, calc(100dvh - 40px));
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 20px;
+  padding: 22px;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--panel-solid);
@@ -2426,8 +2445,10 @@ button {
 
 .quick-modal header {
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 
 .modal-title-block {
@@ -2438,9 +2459,10 @@ button {
 }
 
 .modal-title-block p {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
   color: var(--muted);
   font-size: 0.88rem;
+  line-height: 1.35;
 }
 
 .modal-icon {
@@ -2536,7 +2558,7 @@ button {
 
 .quick-form {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .context-form {
@@ -2553,7 +2575,7 @@ button {
 
 .quick-form label {
   display: grid;
-  gap: 6px;
+  gap: 7px;
 }
 
 .quick-form label span {
@@ -2565,12 +2587,22 @@ button {
 .quick-form input,
 .quick-form select {
   width: 100%;
-  min-height: 42px;
-  padding: 0 12px;
+  min-height: 46px;
+  padding: 0 13px;
   border: 1px solid var(--border-strong);
-  border-radius: 11px;
+  border-radius: 12px;
   color: var(--text);
-  background-color: var(--surface);
+  background-color: color-mix(in srgb, var(--surface) 82%, var(--panel-solid));
+}
+
+.quick-form input:focus,
+.quick-form select:focus,
+.quick-form textarea:focus,
+.project-task-form input:focus,
+.project-task-form select:focus,
+.project-task-form textarea:focus {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border-strong));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-soft) 68%, transparent);
 }
 
 .quick-form select {
@@ -2709,7 +2741,8 @@ button {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 4px;
+  margin-top: 8px;
+  padding-top: 4px;
 }
 
 @media (max-width: 1020px) {
