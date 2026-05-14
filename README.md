@@ -85,7 +85,7 @@ Core areas include:
 
 North Planner works without an account. User data is stored in the browser first, which keeps the first-run experience simple and fast.
 
-Supabase sync is optional. When configured, authenticated users can persist their workspace in the cloud while the app remains usable without backend credentials.
+Supabase sync is optional. When configured, North requires users to sign in before opening the workspace, and each account only reads or writes its own cloud data.
 
 ### Mobile UX as a first-class requirement
 
@@ -202,11 +202,11 @@ This means each browser has its own workspace unless Supabase sync is enabled.
 
 ## Supabase Setup
 
-The app can run without Supabase. To enable authentication and cloud sync, create a `.env` file based on `.env.example`:
+The app can run without Supabase in local-only mode. To enable secure account-based authentication and cloud sync, create a `.env` file based on `.env.example`:
 
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key
 ```
 
 Create the user data table:
@@ -237,6 +237,13 @@ using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 ```
 
+Security notes:
+
+- Email/password authentication is handled by Supabase Auth. The app never stores raw passwords.
+- Row Level Security must stay enabled on `north_user_data`.
+- The policies above isolate each profile by `auth.uid()`, so users can only access rows where `user_id` matches their authenticated account.
+- When Supabase is configured, workspace data is not persisted as a shared local workspace in `localStorage`; users must sign in to load their own cloud profile.
+
 ## Supabase E2E Validation
 
 To test cloud sync locally, add test credentials to `.env`:
@@ -249,7 +256,7 @@ SUPABASE_E2E_PASSWORD=your-test-password
 Then run:
 
 ```bash
-npm run test:supabase:e2e
+corepack pnpm test:supabase:e2e
 ```
 
 The script signs in or creates a test account, writes sample workspace data, simulates a reload, signs out, signs back in, validates cloud recovery and restores previous data.
