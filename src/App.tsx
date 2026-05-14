@@ -125,11 +125,12 @@ function isAppEmpty(data: AppData) {
 function App() {
   const [active, setActive] = useState<Section>("inicio");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [quickType, setQuickType] = useState<QuickType | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete>(null);
-  const [data, setData] = useState<AppData>(loadData);
+  const [data, setData] = useState<AppData>(() => (isSupabaseConfigured ? emptyData : loadData()));
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem(LANG_KEY) === "en" ? "en" : "es"));
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"));
   const [currency, setCurrency] = useState<Currency>(() => {
@@ -146,6 +147,7 @@ function App() {
   const [cloudReady, setCloudReady] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const t = copy[lang];
   const todayLabel = useMemo(() => formatToday(t.locale), [t.locale]);
@@ -169,8 +171,21 @@ function App() {
     [t],
   );
 
+  const sidebarGroups = useMemo(
+    () => [
+      { label: lang === "es" ? "Planner" : "Planner", items: ["dia", "calendario", "objetivos"] as Section[] },
+      { label: lang === "es" ? "Trabajo" : "Work", items: ["proyectos", "estudios"] as Section[] },
+      { label: lang === "es" ? "Personal" : "Personal", items: ["finanzas"] as Section[] },
+    ],
+    [lang],
+  );
+
   useEffect(() => {
-    saveData(data);
+    if (!isSupabaseConfigured) {
+      saveData(data);
+      return;
+    }
+
     if (!authUser || !cloudReady) return;
 
     setSyncStatus("saving");
@@ -186,7 +201,10 @@ function App() {
       const user = sessionData.session?.user ?? null;
       setAuthUser(user);
       if (user) syncFromCloud(user.id);
-      else setSyncStatus("local");
+      else {
+        setData(emptyData);
+        setSyncStatus("local");
+      }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -195,6 +213,7 @@ function App() {
       setCloudReady(false);
       if (user) syncFromCloud(user.id);
       else {
+        setData(emptyData);
         setSyncStatus("local");
         setCloudReady(false);
       }
@@ -405,58 +424,191 @@ function App() {
 
     setAuthLoading(true);
     setAuthMessage("");
-    const credentials = { email: authEmail, password: authPassword };
-    const { error } =
-      authMode === "signIn"
-        ? await supabase.auth.signInWithPassword(credentials)
-        : await supabase.auth.signUp(credentials);
+    try {
+      const credentials = { email: authEmail.trim(), password: authPassword };
+      const { error } =
+        authMode === "signIn"
+          ? await supabase.auth.signInWithPassword(credentials)
+          : await supabase.auth.signUp({
+              ...credentials,
+              options: {
+                emailRedirectTo: window.location.origin,
+              },
+            });
 
-    if (error) setAuthMessage(error.message);
-    else if (authMode === "signUp") setAuthMessage(t.checkEmail);
-    setAuthLoading(false);
+      if (error) setAuthMessage(error.message);
+      else {
+        setAuthPassword("");
+        if (authMode === "signUp") setAuthMessage(t.checkEmail);
+      }
+    } catch (error) {
+      setAuthMessage(authErrorMessage(error, t));
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!supabase) return;
+    const email = authEmail.trim();
+    if (!email) {
+      setAuthMessage(uiText(t, "Escribe tu email para enviarte el enlace.", "Enter your email so we can send the link."));
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage("");
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      setAuthMessage(error ? error.message : t.resetPasswordSent);
+    } catch (error) {
+      setAuthMessage(authErrorMessage(error, t));
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleResendConfirmation() {
+    if (!supabase) return;
+    const email = authEmail.trim();
+    if (!email) {
+      setAuthMessage(uiText(t, "Escribe tu email para reenviar la confirmación.", "Enter your email to resend confirmation."));
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage("");
+    try {
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email,
+        options: {
+          emailRedirectTo: window.location.origin,
+        },
+      });
+      setAuthMessage(error ? error.message : t.confirmationResent);
+    } catch (error) {
+      setAuthMessage(authErrorMessage(error, t));
+    } finally {
+      setAuthLoading(false);
+    }
   }
 
   async function handleSignOut() {
     if (!supabase) return;
     await supabase.auth.signOut();
+    setAuthPassword("");
+    setData(emptyData);
+    setCloudReady(false);
+    setSyncStatus("local");
   }
 
   const editingItem = quickType && editingId ? findItem(data, quickType, editingId) : null;
 
+  if (isSupabaseConfigured && !authUser) {
+    return (
+      <AuthScreen
+        t={t}
+        lang={lang}
+        theme={theme}
+        email={authEmail}
+        password={authPassword}
+        mode={authMode}
+        loading={authLoading}
+        message={authMessage}
+        syncStatus={syncStatus}
+        onEmailChange={setAuthEmail}
+        onPasswordChange={setAuthPassword}
+        onModeChange={setAuthMode}
+        onLangChange={setLang}
+        onThemeChange={setTheme}
+        onSubmit={handleAuth}
+        onPasswordReset={handlePasswordReset}
+        onResendConfirmation={handleResendConfirmation}
+      />
+    );
+  }
+
   return (
     <div className="app-shell">
-      <aside className={`sidebar ${menuOpen ? "is-open" : ""}`}>
-        <div className="brand">
-          <div className="brand-mark">N</div>
-          <div>
-            <strong>North</strong>
-            <span>{t.brandSubtitle}</span>
+      <aside className={`sidebar ${menuOpen ? "is-open" : ""} ${sidebarCollapsed ? "is-collapsed" : ""}`}>
+        <div className="sidebar-workspace">
+          <div className="brand">
+            <div className="brand-mark">N</div>
+            <div>
+              <strong>North</strong>
+              <span>{t.brandSubtitle}</span>
+            </div>
           </div>
+          <button className="sidebar-collapse" aria-label={t.closeMenu} onClick={() => setSidebarCollapsed((value) => !value)}>
+            <ChevronLeft size={16} />
+          </button>
         </div>
+
+        <div className="sidebar-quick-actions" aria-label={t.addQuick}>
+          <button className={active === "inicio" ? "active" : ""} onClick={() => setActive("inicio")} aria-label={t.nav.inicio}>
+            <Home size={16} />
+            <span>{t.nav.inicio}</span>
+          </button>
+          <button onClick={() => searchInputRef.current?.focus()} aria-label={t.search}>
+            <Search size={16} />
+          </button>
+          <button onClick={() => openQuick("task")} aria-label={t.addQuick}>
+            <Plus size={16} />
+          </button>
+        </div>
+
         <nav className="nav-list" aria-label="Principal">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                className={`nav-item ${active === item.id ? "active" : ""}`}
-                key={item.id}
-                onClick={() => {
-                  setActive(item.id);
-                  setMenuOpen(false);
-                }}
-              >
-                <Icon size={19} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
+          {sidebarGroups.map((group) => (
+            <section className="nav-section" key={group.label}>
+              <span className="nav-section-label">{group.label}</span>
+              {group.items.map((id) => {
+                const item = navItems.find((navItem) => navItem.id === id);
+                if (!item) return null;
+                const Icon = item.icon;
+                return (
+                  <button
+                    className={`nav-item ${active === item.id ? "active" : ""}`}
+                    key={item.id}
+                    onClick={() => {
+                      setActive(item.id);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <Icon size={16} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </section>
+          ))}
         </nav>
-        <div className="sidebar-card">
-          <Sparkles size={18} />
-          <strong>{t.todayRhythm}</strong>
-          <span>
-            {completedHabits}/{data.habits.length} {t.habitsCompleted}
-          </span>
+
+        <div className="sidebar-footer">
+          {authUser && (
+            <div className="sidebar-profile">
+              <div className="profile-avatar">{authUser.email?.[0]?.toUpperCase() ?? "N"}</div>
+              <div>
+                <strong>{authUser.email}</strong>
+                <span>{syncLabel(t, syncStatus)}</span>
+              </div>
+            </div>
+          )}
+          <button className="sidebar-footer-item" onClick={() => setSettingsOpen(true)}>
+            <Settings size={16} />
+            <span>{t.settings}</span>
+          </button>
+          <div className="sidebar-card">
+            <Sparkles size={16} />
+            <div>
+              <strong>{t.todayRhythm}</strong>
+              <span>
+                {completedHabits}/{data.habits.length} {t.habitsCompleted}
+              </span>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -472,7 +624,7 @@ function App() {
           <div className="topbar-actions">
             <div className="search">
               <Search size={17} />
-              <input aria-label={t.search} placeholder={t.search} />
+              <input ref={searchInputRef} aria-label={t.search} placeholder={t.search} />
             </div>
             <button className="language-button" onClick={() => setLang(lang === "es" ? "en" : "es")} aria-label={t.switchLanguage}>
               <Globe2 size={17} />
@@ -496,6 +648,7 @@ function App() {
             t,
             data,
             money,
+            currency,
             openQuick,
             deleteItem,
             setData,
@@ -512,6 +665,7 @@ function App() {
             setAuthEmail,
             setAuthPassword,
             setAuthMode,
+            setCurrency,
             handleAuth,
             handleSignOut,
             notify,
@@ -604,6 +758,7 @@ type ViewProps = {
   t: (typeof copy)[Lang];
   data: AppData;
   money: Intl.NumberFormat;
+  currency: Currency;
   openQuick: (type?: QuickType, id?: string) => void;
   deleteItem: (type: QuickType, id: string) => void;
   setData: Dispatch<SetStateAction<AppData>>;
@@ -620,6 +775,7 @@ type ViewProps = {
   setAuthEmail: Dispatch<SetStateAction<string>>;
   setAuthPassword: Dispatch<SetStateAction<string>>;
   setAuthMode: Dispatch<SetStateAction<AuthMode>>;
+  setCurrency: Dispatch<SetStateAction<Currency>>;
   handleAuth: (event: FormEvent<HTMLFormElement>) => void;
   handleSignOut: () => void;
   notify: (message: string, tone?: NonNullable<ToastState>["tone"]) => void;
@@ -756,7 +912,66 @@ function GuidedState({ title, body, actionLabel, onAction }: { title: string; bo
   );
 }
 
-function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
+function uiText(t: (typeof copy)[Lang], es: string, en: string) {
+  return t.locale.startsWith("es") ? es : en;
+}
+
+function authErrorMessage(error: unknown, t: (typeof copy)[Lang]) {
+  if (error instanceof Error) {
+    if (error.message.toLowerCase().includes("fetch")) return t.authNetworkError;
+    return error.message;
+  }
+  return t.authNetworkError;
+}
+
+function SectionOverview({
+  eyebrow,
+  title,
+  body,
+  stats,
+  actions,
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  stats?: { label: string; value: string }[];
+  actions?: { label: string; icon: LucideIcon; onClick: () => void; primary?: boolean }[];
+}) {
+  return (
+    <section className="section-overview span-12">
+      <div>
+        <p className="eyebrow">{eyebrow}</p>
+        <h2>{title}</h2>
+        <span>{body}</span>
+      </div>
+      {stats?.length ? (
+        <div className="section-overview-stats">
+          {stats.map((stat) => (
+            <div key={stat.label}>
+              <strong>{stat.value}</strong>
+              <span>{stat.label}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {actions?.length ? (
+        <div className="section-overview-actions">
+          {actions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <button className={action.primary ? "primary-button compact" : "ghost-button"} key={action.label} onClick={action.onClick}>
+                <Icon size={16} />
+                {action.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function FinanceView({ t, data, money, currency, setCurrency, openQuick, deleteItem }: ViewProps) {
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey());
   const [movementCategory, setMovementCategory] = useState("all");
   const [movementType, setMovementType] = useState<"all" | "income" | "expense">("all");
@@ -765,6 +980,7 @@ function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
   const balance = income - expenses;
   const averageExpense = data.movements.filter((item) => item.type === "expense").length ? expenses / data.movements.filter((item) => item.type === "expense").length : 0;
   const monthlyMovements = data.movements.filter((item) => item.date.startsWith(selectedMonth));
+  const monthlyIncome = monthlyMovements.filter((item) => item.type === "income").reduce((sum, item) => sum + item.amount, 0);
   const monthlyExpenses = data.movements.filter((item) => item.type === "expense" && item.date.startsWith(selectedMonth));
   const individualTotal = monthlyExpenses
     .filter((item) => item.expenseKind !== "shared")
@@ -783,10 +999,25 @@ function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
 
   return (
     <>
+      <FinanceOverview
+        t={t}
+        money={money}
+        balance={balance}
+        income={income}
+        expenses={expenses}
+        monthlyIncome={monthlyIncome}
+        monthlyTotal={monthlyTotal}
+        currency={currency}
+        onCurrencyChange={setCurrency}
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
+        openQuick={openQuick}
+      />
+
       <Panel
-        title={t.labels.monthlyExpenses}
+        title={t.labels.monthFinance}
         icon={Users}
-        className="span-12 panel-featured"
+        className="span-7"
         action={
           <button className="primary-button compact" onClick={() => openQuick("expense")}>
             <Plus size={16} />
@@ -808,15 +1039,15 @@ function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
           openQuick={openQuick}
         />
       </Panel>
-      <Panel title={t.labels.summary} icon={WalletCards} className="span-4">
-        <MetricRow label={t.labels.estimatedBalance} value={money.format(balance)} positive={balance >= 0} />
+      <Panel title={t.labels.summary} icon={WalletCards} className="span-5">
         <MetricRow label={t.labels.averageDailySpend} value={money.format(averageExpense)} />
         <MetricRow label={t.labels.savingsGoal} value={String(data.goals.length)} positive />
+        <MetricRow label={t.labels.plannedSavings} value={money.format(balance)} positive={balance >= 0} />
       </Panel>
       <Panel
         title={t.labels.budgets}
         icon={Target}
-        className="span-8"
+        className="span-5"
         action={
           <button className="ghost-button" onClick={() => openQuick("budget")}>
             <Plus size={16} />
@@ -826,12 +1057,7 @@ function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
       >
         <BudgetList t={t} budgets={data.budgets} movements={data.movements} selectedMonth={selectedMonth} money={money} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
-      {data.movements.length > 0 && (
-        <Panel title={t.labels.charts} icon={CircleDollarSign} className="span-12">
-          <FinanceCharts t={t} movements={data.movements} money={money} />
-        </Panel>
-      )}
-      <Panel title={t.labels.recentMovements} icon={CircleDollarSign} className="span-12">
+      <Panel title={t.labels.recentMovements} icon={CircleDollarSign} className="span-7">
         <MovementFilters
           t={t}
           selectedMonth={selectedMonth}
@@ -844,7 +1070,103 @@ function FinanceView({ t, data, money, openQuick, deleteItem }: ViewProps) {
         />
         <MovementList t={t} movements={filteredMovements} money={money} openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
+      {data.movements.length > 0 && (
+        <Panel title={t.labels.charts} icon={CircleDollarSign} className="span-12">
+          <FinanceCharts t={t} movements={data.movements} money={money} />
+        </Panel>
+      )}
     </>
+  );
+}
+
+function FinanceOverview({
+  t,
+  money,
+  balance,
+  income,
+  expenses,
+  monthlyIncome,
+  monthlyTotal,
+  currency,
+  onCurrencyChange,
+  selectedMonth,
+  onMonthChange,
+  openQuick,
+}: {
+  t: (typeof copy)[Lang];
+  money: Intl.NumberFormat;
+  balance: number;
+  income: number;
+  expenses: number;
+  monthlyIncome: number;
+  monthlyTotal: number;
+  currency: Currency;
+  onCurrencyChange: Dispatch<SetStateAction<Currency>>;
+  selectedMonth: string;
+  onMonthChange: Dispatch<SetStateAction<string>>;
+  openQuick: (type?: QuickType, id?: string) => void;
+}) {
+  const monthBalance = monthlyIncome - monthlyTotal;
+
+  return (
+    <section className="finance-overview span-12" aria-labelledby="finance-overview-title">
+      <div className="finance-overview-copy">
+        <p className="eyebrow">{t.labels.monthFinance}</p>
+        <h2 id="finance-overview-title">{money.format(balance)}</h2>
+        <span>{t.labels.estimatedBalance}</span>
+      </div>
+      <div className="finance-overview-actions">
+        <CurrencyPicker t={t} currency={currency} onCurrencyChange={onCurrencyChange} />
+        <MonthPicker t={t} selectedMonth={selectedMonth} onMonthChange={onMonthChange} compact />
+        <div className="finance-action-group">
+          <button className="primary-button compact" onClick={() => openQuick("expense")}>
+            <Plus size={16} />
+            {t.labels.addExpense}
+          </button>
+          <button className="ghost-button compact-action" onClick={() => openQuick("income")}>
+            <Plus size={16} />
+            {t.addIncome}
+          </button>
+        </div>
+      </div>
+      <div className="finance-kpi-grid">
+        <FinanceKpi label={t.labels.income} value={money.format(income)} tone="positive" />
+        <FinanceKpi label={t.labels.expenses} value={money.format(expenses)} />
+        <FinanceKpi label={t.labels.netMonthlySpend} value={money.format(monthlyTotal)} />
+        <FinanceKpi label={t.labels.plannedSavings} value={money.format(monthBalance)} tone={monthBalance >= 0 ? "positive" : undefined} />
+      </div>
+    </section>
+  );
+}
+
+function CurrencyPicker({
+  t,
+  currency,
+  onCurrencyChange,
+}: {
+  t: (typeof copy)[Lang];
+  currency: Currency;
+  onCurrencyChange: Dispatch<SetStateAction<Currency>>;
+}) {
+  return (
+    <label className="currency-picker" aria-label={t.currency}>
+      <select value={currency} onChange={(event) => onCurrencyChange(event.target.value as Currency)} aria-label={t.currency}>
+        {currencies.map((item) => (
+          <option value={item} key={item}>
+            {item}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function FinanceKpi({ label, value, tone }: { label: string; value: string; tone?: "positive" }) {
+  return (
+    <div className="finance-kpi">
+      <span>{label}</span>
+      <strong className={tone === "positive" ? "positive" : ""}>{value}</strong>
+    </div>
   );
 }
 
@@ -1628,23 +1950,46 @@ function projectTemplates(t: (typeof copy)[Lang]): { id: string; label: string; 
 }
 
 function StudyView({ t, data, openQuick, deleteItem, setData }: ViewProps) {
+  const studyTasks = data.tasks.filter((task) => task.areaKey === "estudios");
   return (
     <>
+      <SectionOverview
+        eyebrow={t.nav.estudios}
+        title={t.labels.academicTasks}
+        body={uiText(t, "Reúne aquí lo académico: una tarea clara, una hora si hace falta y prioridad solo cuando ayude.", "Keep study work here: one clear task, an optional time, and priority only when it helps.")}
+        stats={[{ label: t.labels.pending, value: String(studyTasks.length) }]}
+        actions={[{ label: t.quick.studyTask, icon: Plus, onClick: () => openQuick("studyTask"), primary: true }]}
+      />
       <Panel title={t.labels.subjects} icon={GraduationCap} className="span-5">
         <EmptyState t={t} type="studyTask" openQuick={openQuick} />
       </Panel>
       <Panel title={t.labels.academicTasks} icon={BookOpen} className="span-7" action={<button className="ghost-button" onClick={() => openQuick("studyTask")}><Plus size={16} />{t.quick.studyTask}</button>}>
-        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "estudios")} setData={setData} emptyType="studyTask" openQuick={openQuick} deleteItem={deleteItem} />
+        <TaskList t={t} tasks={studyTasks} setData={setData} emptyType="studyTask" openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
     </>
   );
 }
 
 function DayView({ t, data, openQuick, deleteItem, setData }: ViewProps) {
+  const todayTasks = data.tasks.filter((task) => task.areaKey === "dia");
+  const completedHabits = data.habits.filter((habit) => habit.history.includes(todayKey())).length;
   return (
     <>
+      <SectionOverview
+        eyebrow={t.labels.todayView}
+        title={t.labels.todayFocusTitle}
+        body={t.labels.todayFocusBody}
+        stats={[
+          { label: t.labels.todayTasks, value: String(todayTasks.length) },
+          { label: t.labels.todayHabits, value: `${completedHabits}/${data.habits.length}` },
+        ]}
+        actions={[
+          { label: t.quick.task, icon: Plus, onClick: () => openQuick("task"), primary: true },
+          { label: t.quick.habit, icon: Flame, onClick: () => openQuick("habit") },
+        ]}
+      />
       <Panel title={t.labels.todayTasks} icon={ListTodo} className="span-7" action={<button className="ghost-button" onClick={() => openQuick("task")}><Plus size={16} />{t.quick.task}</button>}>
-        <TaskList t={t} tasks={data.tasks.filter((task) => task.areaKey === "dia")} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
+        <TaskList t={t} tasks={todayTasks} setData={setData} emptyType="task" openQuick={openQuick} deleteItem={deleteItem} />
       </Panel>
       <Panel title={t.labels.habits} icon={Flame} className="span-5" action={<button className="ghost-button" onClick={() => openQuick("habit")}><Plus size={16} />{t.quick.habit}</button>}>
         <HabitGrid t={t} habits={data.habits} setData={setData} openQuick={openQuick} deleteItem={deleteItem} />
@@ -1663,6 +2008,16 @@ function CalendarView({ t, data, openQuick, deleteItem }: ViewProps) {
 
   return (
     <>
+      <SectionOverview
+        eyebrow={t.nav.calendario}
+        title={t.labels.todayAgenda}
+        body={uiText(t, "Elige día, semana o mes sin perder el contexto. Añade solo eventos que necesites recordar.", "Switch between day, week, and month without losing context. Add only the events worth remembering.")}
+        stats={[
+          { label: t.labels.todayAgenda, value: String(eventsForDay.length) },
+          { label: t.labels.thisWeek, value: String(data.events.length) },
+        ]}
+        actions={[{ label: t.addEvent, icon: Plus, onClick: () => openQuick("event"), primary: true }]}
+      />
       <Panel
         title={t.labels.todayAgenda}
         icon={Clock3}
@@ -1730,24 +2085,29 @@ function CalendarView({ t, data, openQuick, deleteItem }: ViewProps) {
 function GoalsView({ t, data, openQuick, deleteItem }: ViewProps) {
   if (!data.goals.length) {
     return (
-      <Panel
-        title={t.labels.goals}
-        icon={Target}
-        className="span-12"
-        action={
-          <button className="ghost-button" onClick={() => openQuick("goal")}>
-            <Plus size={16} />
-            {t.addGoal}
-          </button>
-        }
-      >
-        <EmptyState t={t} type="goal" openQuick={openQuick} title={t.labels.noGoalsTitle} message={t.labels.noGoalsBody} cta={t.addGoal} />
-      </Panel>
+      <>
+        <SectionOverview
+          eyebrow={t.nav.objetivos}
+          title={t.labels.noGoalsTitle}
+          body={t.labels.noGoalsBody}
+          actions={[{ label: t.addGoal, icon: Plus, onClick: () => openQuick("goal"), primary: true }]}
+        />
+        <Panel title={t.labels.goals} icon={Target} className="span-12">
+          <EmptyState t={t} type="goal" openQuick={openQuick} title={t.labels.noGoalsTitle} message={t.labels.noGoalsBody} cta={t.addGoal} />
+        </Panel>
+      </>
     );
   }
 
   return (
     <>
+      <SectionOverview
+        eyebrow={t.nav.objetivos}
+        title={t.labels.progressTracking}
+        body={uiText(t, "Mantén pocos objetivos visibles y revisa el progreso sin convertirlo en ruido.", "Keep a small set of goals visible and review progress without turning it into noise.")}
+        stats={[{ label: t.labels.goals, value: String(data.goals.length) }]}
+        actions={[{ label: t.addGoal, icon: Plus, onClick: () => openQuick("goal"), primary: true }]}
+      />
       <Panel
         title={t.labels.progressTracking}
         icon={Target}
@@ -1778,6 +2138,105 @@ function GoalsView({ t, data, openQuick, deleteItem }: ViewProps) {
         </Panel>
       ))}
     </>
+  );
+}
+
+function AuthScreen({
+  t,
+  lang,
+  theme,
+  email,
+  password,
+  mode,
+  loading,
+  message,
+  syncStatus,
+  onEmailChange,
+  onPasswordChange,
+  onModeChange,
+  onLangChange,
+  onThemeChange,
+  onSubmit,
+  onPasswordReset,
+  onResendConfirmation,
+}: {
+  t: (typeof copy)[Lang];
+  lang: Lang;
+  theme: Theme;
+  email: string;
+  password: string;
+  mode: AuthMode;
+  loading: boolean;
+  message: string;
+  syncStatus: SyncStatus;
+  onEmailChange: Dispatch<SetStateAction<string>>;
+  onPasswordChange: Dispatch<SetStateAction<string>>;
+  onModeChange: Dispatch<SetStateAction<AuthMode>>;
+  onLangChange: Dispatch<SetStateAction<Lang>>;
+  onThemeChange: Dispatch<SetStateAction<Theme>>;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onPasswordReset: () => void;
+  onResendConfirmation: () => void;
+}) {
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
+
+  return (
+    <main className="auth-screen">
+      <div className="auth-shell">
+        <section className="auth-hero" aria-labelledby="auth-screen-title">
+          <div className="brand">
+            <div className="brand-mark">N</div>
+            <div>
+              <strong>North</strong>
+              <span>{t.brandSubtitle}</span>
+            </div>
+          </div>
+          <div>
+            <p className="eyebrow">North</p>
+            <h1 id="auth-screen-title">{mode === "signIn" ? t.authTitle : t.authSignupTitle}</h1>
+            <p>{t.authBody}</p>
+          </div>
+          <div className="auth-security-list">
+            <span><ShieldCheck size={16} />{t.authSecure}</span>
+            <span><Cloud size={16} />{uiText(t, "Perfil privado con acceso por email", "Private profile with email access")}</span>
+          </div>
+        </section>
+
+        <section className="auth-entry-card">
+          <div className="auth-entry-toolbar">
+            <button className="language-button" onClick={() => onLangChange(lang === "es" ? "en" : "es")} aria-label={t.switchLanguage}>
+              <Globe2 size={17} />
+              <span>{lang.toUpperCase()}</span>
+            </button>
+            <button
+              className="icon-button"
+              onClick={() => onThemeChange(theme === "light" ? "dark" : "light")}
+              aria-label={theme === "light" ? t.darkMode : t.lightMode}
+            >
+              <ThemeIcon size={19} />
+            </button>
+          </div>
+          <AuthPanel
+            t={t}
+            user={null}
+            email={email}
+            password={password}
+            mode={mode}
+            loading={loading}
+            message={message}
+            syncStatus={syncStatus}
+            enabled
+            onEmailChange={onEmailChange}
+            onPasswordChange={onPasswordChange}
+            onModeChange={onModeChange}
+            onSubmit={onSubmit}
+            onPasswordReset={onPasswordReset}
+            onResendConfirmation={onResendConfirmation}
+            onSignOut={() => undefined}
+          />
+        </section>
+      </div>
+    </main>
   );
 }
 
@@ -1915,6 +2374,8 @@ function AuthPanel({
   onPasswordChange,
   onModeChange,
   onSubmit,
+  onPasswordReset,
+  onResendConfirmation,
   onSignOut,
 }: {
   t: (typeof copy)[Lang];
@@ -1930,6 +2391,8 @@ function AuthPanel({
   onPasswordChange: Dispatch<SetStateAction<string>>;
   onModeChange: Dispatch<SetStateAction<AuthMode>>;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onPasswordReset?: () => void;
+  onResendConfirmation?: () => void;
   onSignOut: () => void;
 }) {
   if (!enabled) {
@@ -1972,7 +2435,6 @@ function AuthPanel({
           <strong>{mode === "signIn" ? t.authTitle : t.authSignupTitle}</strong>
           <span>{t.authBody}</span>
         </div>
-        <span className={`sync-pill ${syncTone(syncStatus)}`}>{syncLabel(t, syncStatus)}</span>
       </div>
       <form className="auth-form" onSubmit={onSubmit}>
         <label>
@@ -1986,15 +2448,27 @@ function AuthPanel({
             value={password}
             onChange={(event) => onPasswordChange(event.target.value)}
             required
-            minLength={6}
+            minLength={8}
             autoComplete={mode === "signIn" ? "current-password" : "new-password"}
           />
         </label>
+        {mode === "signIn" && onPasswordReset && (
+          <button type="button" className="text-button auth-forgot" onClick={onPasswordReset} disabled={loading}>
+            {t.forgotPassword}
+          </button>
+        )}
         {message && (
-          <span className={`auth-message ${message === t.checkEmail ? "success" : "error"}`}>
-            {message === t.checkEmail ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-            {message}
-          </span>
+          <div className={`auth-message ${message === t.checkEmail || message === t.resetPasswordSent || message === t.confirmationResent ? "success" : "error"}`}>
+            <span>
+              {message === t.checkEmail || message === t.resetPasswordSent || message === t.confirmationResent ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+              {message}
+            </span>
+            {mode === "signUp" && onResendConfirmation && (message === t.checkEmail || message === t.confirmationResent) && (
+              <button type="button" className="text-button" onClick={onResendConfirmation} disabled={loading}>
+                {t.resendConfirmation}
+              </button>
+            )}
+          </div>
         )}
         <span className="auth-note">
           <ShieldCheck size={15} />

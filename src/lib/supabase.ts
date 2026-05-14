@@ -3,7 +3,7 @@ import type { AppData } from "../types";
 import { normalizeData } from "./storage";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 function isValidSupabaseUrl(value: string | undefined) {
   if (!value) return false;
@@ -17,11 +17,11 @@ function isValidSupabaseUrl(value: string | undefined) {
 }
 
 export const isSupabaseConfigured = Boolean(
-  isValidSupabaseUrl(supabaseUrl) && supabaseAnonKey,
+  isValidSupabaseUrl(supabaseUrl) && supabasePublishableKey,
 );
 
 export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabasePublishableKey)
   : null;
 
 export async function loadCloudData(userId: string) {

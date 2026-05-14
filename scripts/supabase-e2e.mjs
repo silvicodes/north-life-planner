@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const env = { ...readEnvFile(".env"), ...process.env };
 const supabaseUrl = env.VITE_SUPABASE_URL;
-const supabaseAnonKey = env.VITE_SUPABASE_ANON_KEY;
+const supabasePublishableKey = env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const email = env.SUPABASE_E2E_EMAIL;
 const password = env.SUPABASE_E2E_PASSWORD;
 const tableName = "north_user_data";
@@ -86,7 +86,7 @@ function readEnvFile(fileName) {
 function assertConfig() {
   const missing = [
     ["VITE_SUPABASE_URL", supabaseUrl],
-    ["VITE_SUPABASE_ANON_KEY", supabaseAnonKey],
+    ["VITE_SUPABASE_PUBLISHABLE_KEY", supabasePublishableKey],
     ["SUPABASE_E2E_EMAIL", email],
     ["SUPABASE_E2E_PASSWORD", password],
   ]
@@ -108,7 +108,7 @@ function assertConfig() {
 }
 
 function createSupabaseClient() {
-  return createClient(supabaseUrl, supabaseAnonKey, {
+  return createClient(supabaseUrl, supabasePublishableKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
