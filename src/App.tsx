@@ -15,6 +15,7 @@ import {
   GraduationCap,
   Home,
   ListTodo,
+  LogOut,
   Menu,
   Moon,
   Plus,
@@ -83,7 +84,19 @@ type ToastState = {
   message: string;
   tone: "success" | "info";
 } | null;
+type HomeWidget = "tasks" | "habits" | "agenda" | "finance" | "projects" | "goals";
+type SearchResult = {
+  id: string;
+  title: string;
+  meta: string;
+  section: Section;
+  type?: QuickType;
+  icon: LucideIcon;
+};
 const currencies: Currency[] = ["EUR", "GBP", "USD"];
+const homeWidgets: HomeWidget[] = ["tasks", "habits", "agenda", "finance", "projects", "goals"];
+const HOME_WIDGETS_KEY = "north-home-widgets";
+const REMINDERS_KEY = "north-reminders-enabled";
 type FirstStepAction = { type: QuickType; icon: LucideIcon; label: string };
 
 function createId() {
@@ -105,6 +118,16 @@ function formatMonthLabel(monthKey: string, locale: string) {
   return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1));
 }
 
+function eventOccursOn(event: EventItem, key: string) {
+  if (event.date === key) return true;
+  if (!event.date || !event.recurrence || event.recurrence === "none" || key < event.date) return false;
+  const start = new Date(`${event.date}T00:00:00`);
+  const target = new Date(`${key}T00:00:00`);
+  if (event.recurrence === "daily") return true;
+  if (event.recurrence === "weekly") return start.getDay() === target.getDay();
+  return start.getDate() === target.getDate();
+}
+
 function sharedOwnAmount(movement: Movement) {
   return movement.amount * ((movement.ownerSharePercent ?? 100) / 100);
 }
@@ -120,6 +143,24 @@ function sharedSettlementAmount(movement: Movement) {
 
 function isAppEmpty(data: AppData) {
   return Object.values(data).every((items) => items.length === 0);
+}
+
+function parseTags(value: FormDataEntryValue | undefined) {
+  return String(value || "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+function loadHomeWidgets() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HOME_WIDGETS_KEY) || "[]");
+    return Array.isArray(parsed) && parsed.length
+      ? homeWidgets.filter((widget) => parsed.includes(widget))
+      : homeWidgets;
+  } catch {
+    return homeWidgets;
+  }
 }
 
 function App() {
@@ -140,12 +181,17 @@ function App() {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
+  const [authPasswordConfirm, setAuthPasswordConfirm] = useState("");
   const [authMode, setAuthMode] = useState<AuthMode>("signIn");
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState("");
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(isSupabaseConfigured ? "loading" : "local");
   const [cloudReady, setCloudReady] = useState(false);
   const [toast, setToast] = useState<ToastState>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [homeWidgetPrefs, setHomeWidgetPrefs] = useState<HomeWidget[]>(loadHomeWidgets);
+  const [remindersEnabled, setRemindersEnabled] = useState(() => localStorage.getItem(REMINDERS_KEY) === "true");
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -199,23 +245,32 @@ function App() {
 
     supabase.auth.getSession().then(({ data: sessionData }) => {
       const user = sessionData.session?.user ?? null;
+      const isRecoveryUrl = window.location.href.includes("type=recovery");
       setAuthUser(user);
-      if (user) syncFromCloud(user.id);
+      if (user && isRecoveryUrl) {
+        setPasswordRecovery(true);
+      } else if (user) syncFromCloud(user.id);
       else {
         setData(emptyData);
         setSyncStatus("local");
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user ?? null;
+      const isRecovery = event === "PASSWORD_RECOVERY";
       setAuthUser(user);
       setCloudReady(false);
-      if (user) syncFromCloud(user.id);
+      if (isRecovery) {
+        setPasswordRecovery(true);
+        setAuthPassword("");
+        setAuthPasswordConfirm("");
+      } else if (user) syncFromCloud(user.id);
       else {
         setData(emptyData);
         setSyncStatus("local");
         setCloudReady(false);
+        setPasswordRecovery(false);
       }
     });
 
@@ -237,14 +292,40 @@ function App() {
   }, [currency]);
 
   useEffect(() => {
+    localStorage.setItem(HOME_WIDGETS_KEY, JSON.stringify(homeWidgetPrefs));
+  }, [homeWidgetPrefs]);
+
+  useEffect(() => {
+    localStorage.setItem(REMINDERS_KEY, String(remindersEnabled));
+  }, [remindersEnabled]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(null), 2600);
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    if (!remindersEnabled || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    const now = new Date();
+    const timers = data.events
+      .filter((event) => event.date === todayKey() && event.time)
+      .map((event) => {
+        const reminderAt = new Date(`${event.date}T${event.time}`);
+        const delay = reminderAt.getTime() - now.getTime();
+        if (delay <= 0 || delay > 24 * 60 * 60 * 1000) return null;
+        return window.setTimeout(() => {
+          new Notification("North", { body: event.title });
+        }, delay);
+      })
+      .filter((timer): timer is number => Boolean(timer));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [data.events, remindersEnabled]);
+
   const completedHabits = data.habits.filter((habit) => habit.history.includes(todayKey())).length;
   const title = navItems.find((item) => item.id === active)?.label ?? t.nav.inicio;
   const ThemeIcon = theme === "dark" ? Sun : Moon;
+  const searchResults = useMemo(() => buildSearchResults(data, searchQuery, t, money), [data, searchQuery, t, money]);
 
   function openQuick(type: QuickType = "task", id?: string) {
     setQuickType(type);
@@ -278,6 +359,7 @@ function App() {
           sharedWith: expenseKind === "shared" ? String(payload.sharedWith || "") : "",
           ownerSharePercent,
           paidBy,
+          tags: parseTags(payload.tags),
         };
         if (editingId) {
           return { ...current, movements: current.movements.map((item) => (item.id === editingId ? movement : item)) };
@@ -307,6 +389,8 @@ function App() {
           title: String(payload.title || t.quick.event),
           date: String(payload.date || ""),
           time: String(payload.time || ""),
+          recurrence: String(payload.recurrence || "none") as EventItem["recurrence"],
+          tags: parseTags(payload.tags),
         };
         if (editingId) {
           return { ...current, events: current.events.map((item) => (item.id === editingId ? event : item)) };
@@ -321,6 +405,7 @@ function App() {
           area: String(payload.area || t.labels.goals),
           progress: Math.min(100, Math.max(0, Number(payload.progress) || 0)),
           target: String(payload.target || ""),
+          tags: parseTags(payload.tags),
         };
         if (editingId) {
           return { ...current, goals: current.goals.map((item) => (item.id === editingId ? goal : item)) };
@@ -346,6 +431,8 @@ function App() {
         areaKey: type === "studyTask" ? "estudios" : "dia",
         time: String(payload.time || ""),
         priority: String(payload.priority || "medium") as PriorityKey,
+        recurrence: String(payload.recurrence || "none") as Task["recurrence"],
+        tags: parseTags(payload.tags),
       };
       if (editingId) {
         return { ...current, tasks: current.tasks.map((item) => (item.id === editingId ? task : item)) };
@@ -470,6 +557,36 @@ function App() {
     }
   }
 
+  async function handleSendAccountReset() {
+    if (!supabase || !authUser?.email) return;
+    setAuthLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(authUser.email, {
+        redirectTo: window.location.origin,
+      });
+      notify(error ? error.message : t.resetPasswordSent, error ? "info" : "success");
+    } catch (error) {
+      notify(authErrorMessage(error, t), "info");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleEnableReminders() {
+    if (typeof Notification === "undefined") {
+      notify(uiText(t, "Este navegador no permite notificaciones.", "This browser does not support notifications."), "info");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setRemindersEnabled(permission === "granted");
+    notify(
+      permission === "granted"
+        ? uiText(t, "Recordatorios activados.", "Reminders enabled.")
+        : uiText(t, "No se han activado los recordatorios.", "Reminders were not enabled."),
+      "info",
+    );
+  }
+
   async function handleResendConfirmation() {
     if (!supabase) return;
     const email = authEmail.trim();
@@ -500,14 +617,68 @@ function App() {
     if (!supabase) return;
     await supabase.auth.signOut();
     setAuthPassword("");
+    setAuthPasswordConfirm("");
+    setPasswordRecovery(false);
     setData(emptyData);
     setCloudReady(false);
     setSyncStatus("local");
   }
 
+  async function handleUpdatePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !authUser) return;
+    if (authPassword.length < 8) {
+      setAuthMessage(uiText(t, "La contraseña debe tener al menos 8 caracteres.", "Password must be at least 8 characters."));
+      return;
+    }
+    if (authPassword !== authPasswordConfirm) {
+      setAuthMessage(uiText(t, "Las contraseñas no coinciden.", "Passwords do not match."));
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthMessage("");
+    try {
+      const { error } = await supabase.auth.updateUser({ password: authPassword });
+      if (error) {
+        setAuthMessage(error.message);
+        return;
+      }
+      setAuthPassword("");
+      setAuthPasswordConfirm("");
+      setPasswordRecovery(false);
+      window.history.replaceState({}, "", window.location.pathname);
+      await syncFromCloud(authUser.id);
+    } catch (error) {
+      setAuthMessage(authErrorMessage(error, t));
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   const editingItem = quickType && editingId ? findItem(data, quickType, editingId) : null;
 
-  if (isSupabaseConfigured && !authUser) {
+  if (authUser && passwordRecovery) {
+    return (
+      <PasswordRecoveryScreen
+        t={t}
+        lang={lang}
+        theme={theme}
+        password={authPassword}
+        confirmPassword={authPasswordConfirm}
+        loading={authLoading}
+        message={authMessage}
+        onPasswordChange={setAuthPassword}
+        onConfirmPasswordChange={setAuthPasswordConfirm}
+        onLangChange={setLang}
+        onThemeChange={setTheme}
+        onSubmit={handleUpdatePassword}
+        onSignOut={handleSignOut}
+      />
+    );
+  }
+
+  if (!authUser) {
     return (
       <AuthScreen
         t={t}
@@ -519,6 +690,7 @@ function App() {
         loading={authLoading}
         message={authMessage}
         syncStatus={syncStatus}
+        supabaseEnabled={isSupabaseConfigured}
         onEmailChange={setAuthEmail}
         onPasswordChange={setAuthPassword}
         onModeChange={setAuthMode}
@@ -600,6 +772,12 @@ function App() {
             <Settings size={16} />
             <span>{t.settings}</span>
           </button>
+          {authUser && (
+            <button className="sidebar-footer-item" onClick={handleSignOut}>
+              <LogOut size={16} />
+              <span>{t.signOut}</span>
+            </button>
+          )}
           <div className="sidebar-card">
             <Sparkles size={16} />
             <div>
@@ -624,7 +802,24 @@ function App() {
           <div className="topbar-actions">
             <div className="search">
               <Search size={17} />
-              <input ref={searchInputRef} aria-label={t.search} placeholder={t.search} />
+              <input
+                ref={searchInputRef}
+                aria-label={t.search}
+                placeholder={t.search}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+              {searchQuery.trim() && (
+                <SearchResults
+                  t={t}
+                  results={searchResults}
+                  onSelect={(result) => {
+                    setActive(result.section);
+                    setSearchQuery("");
+                    if (result.type) openQuick(result.type, result.id);
+                  }}
+                />
+              )}
             </div>
             <button className="language-button" onClick={() => setLang(lang === "es" ? "en" : "es")} aria-label={t.switchLanguage}>
               <Globe2 size={17} />
@@ -654,6 +849,7 @@ function App() {
             setData,
             exportData,
             importData: () => importInputRef.current?.click(),
+            homeWidgetPrefs,
             authUser,
             authEmail,
             authPassword,
@@ -724,9 +920,15 @@ function App() {
           authUser={authUser}
           syncStatus={syncStatus}
           supabaseEnabled={isSupabaseConfigured}
+          homeWidgetPrefs={homeWidgetPrefs}
+          remindersEnabled={remindersEnabled}
           onLangChange={setLang}
           onThemeChange={setTheme}
           onCurrencyChange={setCurrency}
+          onHomeWidgetPrefsChange={setHomeWidgetPrefs}
+          onSendPasswordReset={handleSendAccountReset}
+          onEnableReminders={handleEnableReminders}
+          onRemindersEnabledChange={setRemindersEnabled}
           onExport={exportData}
           onImport={() => importInputRef.current?.click()}
           onClearLocalData={handleClearLocalData}
@@ -764,6 +966,7 @@ type ViewProps = {
   setData: Dispatch<SetStateAction<AppData>>;
   exportData: () => void;
   importData: () => void;
+  homeWidgetPrefs: HomeWidget[];
   authUser: User | null;
   authEmail: string;
   authPassword: string;
@@ -800,20 +1003,123 @@ function renderSection(active: Section, props: ViewProps) {
   }
 }
 
+function buildSearchResults(data: AppData, query: string, t: (typeof copy)[Lang], money: Intl.NumberFormat): SearchResult[] {
+  const term = query.trim().toLowerCase();
+  if (!term) return [];
+
+  const matches = (values: (string | number | undefined)[]) => values.join(" ").toLowerCase().includes(term);
+  const results: SearchResult[] = [];
+
+  data.tasks.forEach((task) => {
+    if (matches([task.title, task.areaKey, task.priority, task.time, ...(task.tags || [])])) {
+      results.push({
+        id: task.id,
+        title: task.title,
+        meta: `${task.areaKey === "estudios" ? t.nav.estudios : t.nav.dia} · ${task.time || t.noDate}`,
+        section: task.areaKey,
+        type: task.areaKey === "estudios" ? "studyTask" : "task",
+        icon: ListTodo,
+      });
+    }
+  });
+
+  data.events.forEach((event) => {
+    if (matches([event.title, event.date, event.time, event.recurrence, ...(event.tags || [])])) {
+      results.push({ id: event.id, title: event.title, meta: `${t.nav.calendario} · ${event.date || t.noDate}`, section: "calendario", type: "event", icon: CalendarDays });
+    }
+  });
+
+  data.movements.forEach((movement) => {
+    if (matches([movement.title, movement.category, movement.amount, movement.date, ...(movement.tags || [])])) {
+      results.push({
+        id: movement.id,
+        title: movement.title,
+        meta: `${t.nav.finanzas} · ${money.format(movement.amount)} · ${movement.category}`,
+        section: "finanzas",
+        type: movement.type,
+        icon: CircleDollarSign,
+      });
+    }
+  });
+
+  data.projects.forEach((project) => {
+    if (matches([project.name, project.client, project.deadline, project.notes, ...(project.tags || []), ...(project.links || [])])) {
+      results.push({ id: project.id, title: project.name, meta: `${t.nav.proyectos} · ${project.client || t.projects.noClient}`, section: "proyectos", icon: BriefcaseBusiness });
+    }
+  });
+
+  data.goals.forEach((goal) => {
+    if (matches([goal.title, goal.area, goal.target, goal.progress, ...(goal.tags || [])])) {
+      results.push({ id: goal.id, title: goal.title, meta: `${t.nav.objetivos} · ${goal.progress}%`, section: "objetivos", type: "goal", icon: Target });
+    }
+  });
+
+  data.habits.forEach((habit) => {
+    if (matches([habit.name, habit.frequency])) {
+      results.push({ id: habit.id, title: habit.name, meta: `${t.nav.dia} · ${t.frequencies[habit.frequency]}`, section: "dia", type: "habit", icon: Flame });
+    }
+  });
+
+  return results.slice(0, 8);
+}
+
+function SearchResults({
+  t,
+  results,
+  onSelect,
+}: {
+  t: (typeof copy)[Lang];
+  results: SearchResult[];
+  onSelect: (result: SearchResult) => void;
+}) {
+  return (
+    <div className="search-results">
+      {results.length ? (
+        results.map((result) => {
+          const Icon = result.icon;
+          return (
+            <button key={`${result.section}-${result.id}-${result.title}`} onClick={() => onSelect(result)}>
+              <Icon size={15} />
+              <span>
+                <strong>{result.title}</strong>
+                <small>{result.meta}</small>
+              </span>
+            </button>
+          );
+        })
+      ) : (
+        <div className="search-empty">{uiText(t, "Sin resultados", "No results")}</div>
+      )}
+    </div>
+  );
+}
+
 function HomeView({
   t,
   data,
+  money,
+  homeWidgetPrefs,
   openQuick,
   deleteItem,
   setData,
 }: ViewProps) {
   const todayTasks = data.tasks.filter((task) => task.areaKey === "dia");
   const completedHabits = data.habits.filter((habit) => habit.history.includes(todayKey())).length;
+  const upcomingEvents = data.events
+    .filter((event) => !event.date || event.date >= todayKey() || eventOccursOn(event, todayKey()))
+    .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
+    .slice(0, 3);
+  const activeProjects = data.projects.filter((project) => project.status !== "archived" && project.status !== "delivered");
+  const monthlyMovements = data.movements.filter((movement) => movement.date.startsWith(currentMonthKey()));
+  const monthlyIncome = monthlyMovements.filter((movement) => movement.type === "income").reduce((sum, movement) => sum + movement.amount, 0);
+  const monthlyExpenses = monthlyMovements.filter((movement) => movement.type === "expense").reduce((sum, movement) => sum + sharedOwnAmount(movement), 0);
+  const goalAverage = data.goals.length ? Math.round(data.goals.reduce((sum, goal) => sum + goal.progress, 0) / data.goals.length) : 0;
   const firstStepActions: FirstStepAction[] = [];
   if (todayTasks.length === 0) firstStepActions.push({ type: "task", icon: ListTodo, label: t.onboarding.actions.task });
   if (data.movements.length === 0) firstStepActions.push({ type: "expense", icon: CircleDollarSign, label: t.onboarding.actions.expense });
   if (data.habits.length === 0) firstStepActions.push({ type: "habit", icon: Flame, label: t.onboarding.actions.habit });
   const showFirstSteps = firstStepActions.length >= 2;
+  const showWidget = (widget: HomeWidget) => homeWidgetPrefs.includes(widget);
 
   return (
     <>
@@ -823,12 +1129,32 @@ function HomeView({
           <h2>{t.labels.todayFocusTitle}</h2>
           <p>{t.labels.todayFocusBody}</p>
         </div>
+        <div className="home-hero-actions">
+          <button className="primary-button compact" onClick={() => openQuick("task")}>
+            <Plus size={16} />
+            {t.labels.addTask}
+          </button>
+          <button className="ghost-button" onClick={() => openQuick("event")}>
+            <CalendarDays size={16} />
+            {t.addEvent}
+          </button>
+          <button className="ghost-button" onClick={() => openQuick("expense")}>
+            <CircleDollarSign size={16} />
+            {t.labels.addExpense}
+          </button>
+        </div>
+        <div className="home-snapshot-grid">
+          <HomeSnapshot icon={ListTodo} label={t.labels.todayTasks} value={String(todayTasks.length)} />
+          <HomeSnapshot icon={Flame} label={t.labels.todayHabits} value={`${completedHabits}/${data.habits.length}`} />
+          <HomeSnapshot icon={BriefcaseBusiness} label={t.projects.activeProjects} value={String(activeProjects.length)} />
+          <HomeSnapshot icon={WalletCards} label={t.labels.plannedSavings} value={money.format(monthlyIncome - monthlyExpenses)} />
+        </div>
       </section>
 
-      <Panel
+      {showWidget("tasks") && <Panel
         title={t.labels.todayTasks}
         icon={ListTodo}
-        className="span-7 panel-featured"
+        className="span-6 panel-featured"
         action={!showFirstSteps ? (
           <button className="primary-button compact" onClick={() => openQuick("task")}>
             <Plus size={18} />
@@ -841,12 +1167,12 @@ function HomeView({
         ) : (
           <GuidedState title={t.labels.todayTasksGuideTitle} body={t.labels.todayTasksGuideBody} />
         )}
-      </Panel>
+      </Panel>}
 
-      <Panel
+      {showWidget("habits") && <Panel
         title={t.labels.todayHabits}
         icon={Flame}
-        className="span-5"
+        className="span-3"
         action={
           <span className="today-count">
             {completedHabits}/{data.habits.length}
@@ -860,10 +1186,116 @@ function HomeView({
         ) : (
           <GuidedState title={t.labels.todayHabitsGuideTitle} body={t.labels.todayHabitsGuideBody} actionLabel={t.labels.addHabit} onAction={() => openQuick("habit")} />
         )}
-      </Panel>
+      </Panel>}
+
+      {showWidget("agenda") && <Panel
+        title={t.labels.todayAgenda}
+        icon={CalendarDays}
+        className="span-3"
+        action={
+          <button className="icon-button small" onClick={() => openQuick("event")} aria-label={t.addEvent}>
+            <Plus size={14} />
+          </button>
+        }
+      >
+        <HomePreviewList
+          emptyTitle={t.labels.noEventsTitle}
+          emptyBody={t.labels.noEventsBody}
+          items={upcomingEvents.map((event) => ({
+            icon: CalendarDays,
+            label: event.title,
+            meta: `${event.date || t.noDate}${event.time ? ` · ${event.time}` : ""}`,
+          }))}
+        />
+      </Panel>}
+
+      {showWidget("finance") && <Panel title={t.labels.monthFinance} icon={WalletCards} className="span-4">
+        <div className="home-finance-summary">
+          <MetricRow label={t.labels.income} value={money.format(monthlyIncome)} positive />
+          <MetricRow label={t.labels.expenses} value={money.format(monthlyExpenses)} />
+          <MetricRow label={t.labels.plannedSavings} value={money.format(monthlyIncome - monthlyExpenses)} positive={monthlyIncome - monthlyExpenses >= 0} />
+        </div>
+      </Panel>}
+
+      {showWidget("projects") && <Panel title={t.projects.title} icon={BriefcaseBusiness} className="span-4">
+        <HomePreviewList
+          emptyTitle={t.projects.emptyTitle}
+          emptyBody={t.projects.emptyBody}
+          items={activeProjects.slice(0, 3).map((project) => ({
+            icon: BriefcaseBusiness,
+            label: project.name,
+            meta: `${project.client || t.projects.noClient} · ${project.deadline || t.noDate}`,
+          }))}
+        />
+      </Panel>}
+
+      {showWidget("goals") && <Panel title={t.labels.goals} icon={Target} className="span-4">
+        {data.goals.length ? (
+          <div className="home-goal-summary">
+            <ProgressRing value={goalAverage} label={t.progress} />
+            <HomePreviewList
+              emptyTitle={t.labels.noGoalsTitle}
+              emptyBody={t.labels.noGoalsBody}
+              items={data.goals.slice(0, 2).map((goal) => ({
+                icon: Target,
+                label: goal.title,
+                meta: `${goal.progress}% · ${goal.area}`,
+              }))}
+            />
+          </div>
+        ) : (
+          <GuidedState title={t.labels.noGoalsTitle} body={t.labels.noGoalsBody} actionLabel={t.addGoal} onAction={() => openQuick("goal")} />
+        )}
+      </Panel>}
 
       {showFirstSteps && <HomeFirstSteps t={t} actions={firstStepActions} openQuick={openQuick} />}
     </>
+  );
+}
+
+function HomeSnapshot({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <div className="home-snapshot">
+      <Icon size={15} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function HomePreviewList({
+  items,
+  emptyTitle,
+  emptyBody,
+}: {
+  items: { icon: LucideIcon; label: string; meta: string }[];
+  emptyTitle: string;
+  emptyBody: string;
+}) {
+  if (!items.length) {
+    return (
+      <div className="home-preview-empty">
+        <strong>{emptyTitle}</strong>
+        <span>{emptyBody}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-preview-list">
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <div className="home-preview-item" key={`${item.label}-${item.meta}`}>
+            <Icon size={15} />
+            <div>
+              <strong>{item.label}</strong>
+              <span>{item.meta}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1987,7 +2419,7 @@ function CalendarView({ t, data, openQuick, deleteItem }: ViewProps) {
   const [mode, setMode] = useState<CalendarMode>("day");
   const [selectedDate, setSelectedDate] = useState(todayKey());
   const selected = new Date(`${selectedDate}T00:00:00`);
-  const eventsForDay = data.events.filter((event) => event.date === selectedDate);
+  const eventsForDay = data.events.filter((event) => eventOccursOn(event, selectedDate));
   const weekStart = startOfWeek(selected);
   const week = Array.from({ length: 7 }, (_, index) => addDays(weekStart, index));
 
@@ -2033,7 +2465,7 @@ function CalendarView({ t, data, openQuick, deleteItem }: ViewProps) {
           <div className="calendar-week">
             {week.map((day) => {
               const key = dateKey(day);
-              const count = data.events.filter((event) => event.date === key).length;
+              const count = data.events.filter((event) => eventOccursOn(event, key)).length;
               return (
                 <button className={key === selectedDate ? "active" : ""} key={key} onClick={() => setSelectedDate(key)}>
                   <strong>{day.toLocaleDateString(t.locale, { weekday: "short" })}</strong>
@@ -2049,7 +2481,7 @@ function CalendarView({ t, data, openQuick, deleteItem }: ViewProps) {
             {monthGridDays(selected).map((day, index) => {
               if (!day) return <span className="calendar-empty-day" key={`empty-${index}`} />;
               const key = dateKey(day);
-              const count = data.events.filter((event) => event.date === key).length;
+              const count = data.events.filter((event) => eventOccursOn(event, key)).length;
               return (
                 <button className={key === selectedDate ? "active" : ""} key={key} onClick={() => setSelectedDate(key)}>
                   <span>{day.getDate()}</span>
@@ -2126,6 +2558,132 @@ function GoalsView({ t, data, openQuick, deleteItem }: ViewProps) {
   );
 }
 
+function PasswordRecoveryScreen({
+  t,
+  lang,
+  theme,
+  password,
+  confirmPassword,
+  loading,
+  message,
+  onPasswordChange,
+  onConfirmPasswordChange,
+  onLangChange,
+  onThemeChange,
+  onSubmit,
+  onSignOut,
+}: {
+  t: (typeof copy)[Lang];
+  lang: Lang;
+  theme: Theme;
+  password: string;
+  confirmPassword: string;
+  loading: boolean;
+  message: string;
+  onPasswordChange: Dispatch<SetStateAction<string>>;
+  onConfirmPasswordChange: Dispatch<SetStateAction<string>>;
+  onLangChange: Dispatch<SetStateAction<Lang>>;
+  onThemeChange: Dispatch<SetStateAction<Theme>>;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSignOut: () => void;
+}) {
+  const ThemeIcon = theme === "dark" ? Sun : Moon;
+  const successMessages: string[] = [t.resetPasswordSent, t.confirmationResent, t.checkEmail];
+
+  return (
+    <main className="auth-screen">
+      <div className="auth-shell">
+        <section className="auth-hero" aria-labelledby="password-recovery-title">
+          <div className="brand">
+            <div className="brand-mark">N</div>
+            <div>
+              <strong>North</strong>
+              <span>{t.brandSubtitle}</span>
+            </div>
+          </div>
+          <div>
+            <p className="eyebrow">North</p>
+            <h1 id="password-recovery-title">{uiText(t, "Crea una contraseña nueva", "Create a new password")}</h1>
+            <p>{uiText(t, "Este enlace es solo para recuperar el acceso a tu perfil.", "This link is only for recovering access to your profile.")}</p>
+          </div>
+          <div className="auth-security-list">
+            <span><ShieldCheck size={16} />{t.authSecure}</span>
+            <span><Cloud size={16} />{uiText(t, "Tu espacio se abrirá al guardar la contraseña", "Your workspace opens after saving the password")}</span>
+          </div>
+        </section>
+
+        <section className="auth-entry-card">
+          <div className="auth-entry-toolbar">
+            <button className="language-button" onClick={() => onLangChange(lang === "es" ? "en" : "es")} aria-label={t.switchLanguage}>
+              <Globe2 size={17} />
+              <span>{lang.toUpperCase()}</span>
+            </button>
+            <button
+              className="icon-button"
+              onClick={() => onThemeChange(theme === "light" ? "dark" : "light")}
+              aria-label={theme === "light" ? t.darkMode : t.lightMode}
+            >
+              <ThemeIcon size={19} />
+            </button>
+          </div>
+
+          <div className="auth-card">
+            <div className="auth-card-header">
+              <div className="auth-card-icon">
+                <ShieldCheck size={20} />
+              </div>
+              <div className="auth-card-copy">
+                <strong>{uiText(t, "Nueva contraseña", "New password")}</strong>
+                <span>{uiText(t, "Elige una contraseña de al menos 8 caracteres.", "Choose a password with at least 8 characters.")}</span>
+              </div>
+            </div>
+            <form className="auth-form" onSubmit={onSubmit}>
+              <label>
+                <span>{uiText(t, "Nueva contraseña", "New password")}</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => onPasswordChange(event.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </label>
+              <label>
+                <span>{uiText(t, "Repite la contraseña", "Repeat password")}</span>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => onConfirmPasswordChange(event.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                />
+              </label>
+              {message && (
+                <div className={`auth-message ${successMessages.includes(message) ? "success" : "error"}`}>
+                  <span>
+                    {successMessages.includes(message) ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                    {message}
+                  </span>
+                </div>
+              )}
+              <div className="form-actions">
+                <button type="button" className="ghost-button" onClick={onSignOut} disabled={loading}>
+                  {t.cancel}
+                </button>
+                <button type="submit" className="primary-button" disabled={loading}>
+                  {loading ? t.authLoading : uiText(t, "Guardar contraseña", "Save password")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 function AuthScreen({
   t,
   lang,
@@ -2136,6 +2694,7 @@ function AuthScreen({
   loading,
   message,
   syncStatus,
+  supabaseEnabled,
   onEmailChange,
   onPasswordChange,
   onModeChange,
@@ -2154,6 +2713,7 @@ function AuthScreen({
   loading: boolean;
   message: string;
   syncStatus: SyncStatus;
+  supabaseEnabled: boolean;
   onEmailChange: Dispatch<SetStateAction<string>>;
   onPasswordChange: Dispatch<SetStateAction<string>>;
   onModeChange: Dispatch<SetStateAction<AuthMode>>;
@@ -2210,7 +2770,7 @@ function AuthScreen({
             loading={loading}
             message={message}
             syncStatus={syncStatus}
-            enabled
+            enabled={supabaseEnabled}
             onEmailChange={onEmailChange}
             onPasswordChange={onPasswordChange}
             onModeChange={onModeChange}
@@ -2233,9 +2793,15 @@ function SettingsDialog({
   authUser,
   syncStatus,
   supabaseEnabled,
+  homeWidgetPrefs,
+  remindersEnabled,
   onLangChange,
   onThemeChange,
   onCurrencyChange,
+  onHomeWidgetPrefsChange,
+  onSendPasswordReset,
+  onEnableReminders,
+  onRemindersEnabledChange,
   onExport,
   onImport,
   onClearLocalData,
@@ -2249,9 +2815,15 @@ function SettingsDialog({
   authUser: User | null;
   syncStatus: SyncStatus;
   supabaseEnabled: boolean;
+  homeWidgetPrefs: HomeWidget[];
+  remindersEnabled: boolean;
   onLangChange: Dispatch<SetStateAction<Lang>>;
   onThemeChange: Dispatch<SetStateAction<Theme>>;
   onCurrencyChange: Dispatch<SetStateAction<Currency>>;
+  onHomeWidgetPrefsChange: Dispatch<SetStateAction<HomeWidget[]>>;
+  onSendPasswordReset: () => void;
+  onEnableReminders: () => void;
+  onRemindersEnabledChange: Dispatch<SetStateAction<boolean>>;
   onExport: () => void;
   onImport: () => void;
   onClearLocalData: () => void;
@@ -2297,15 +2869,67 @@ function SettingsDialog({
 
         <section className="settings-section">
           <h3>{t.cloudSync}</h3>
+          {authUser && (
+            <div className="settings-account-card">
+              <div className="profile-avatar">{authUser.email?.[0]?.toUpperCase() ?? "N"}</div>
+              <div>
+                <strong>{authUser.email}</strong>
+                <span>{syncLabel(t, syncStatus)}</span>
+              </div>
+            </div>
+          )}
           <div className="settings-row">
             <span>{authUser ? `${t.signedInAs} ${authUser.email}` : supabaseEnabled ? t.syncDisabled : t.authHint}</span>
             <span className={`sync-pill ${syncTone(syncStatus)}`}>{syncLabel(t, syncStatus)}</span>
           </div>
           {authUser && (
-            <button className="ghost-button" onClick={onSignOut}>
-              {t.signOut}
-            </button>
+            <div className="settings-actions">
+              <button className="ghost-button" onClick={onSendPasswordReset}>
+                <ShieldCheck size={16} />
+                {uiText(t, "Cambiar contraseña", "Change password")}
+              </button>
+              <button className="ghost-button" onClick={onSignOut}>
+                {t.signOut}
+              </button>
+            </div>
           )}
+        </section>
+
+        <section className="settings-section">
+          <h3>{uiText(t, "Dashboard", "Dashboard")}</h3>
+          <p>{uiText(t, "Elige qué módulos aparecen en Inicio.", "Choose which modules appear on Home.")}</p>
+          <div className="settings-checkbox-grid">
+            {homeWidgets.map((widget) => (
+              <label key={widget}>
+                <input
+                  type="checkbox"
+                  checked={homeWidgetPrefs.includes(widget)}
+                  onChange={(event) =>
+                    onHomeWidgetPrefsChange((current) =>
+                      event.target.checked ? [...current, widget] : current.filter((item) => item !== widget),
+                    )
+                  }
+                />
+                <span>{homeWidgetLabel(widget, t)}</span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>{uiText(t, "Recordatorios", "Reminders")}</h3>
+          <div className="settings-row">
+            <span>{uiText(t, "North puede avisarte de eventos de hoy mientras la app esté abierta.", "North can remind you about today's events while the app is open.")}</span>
+            <button
+              className={remindersEnabled ? "primary-button compact" : "ghost-button"}
+              onClick={() => {
+                if (remindersEnabled) onRemindersEnabledChange(false);
+                else onEnableReminders();
+              }}
+            >
+              {remindersEnabled ? uiText(t, "Activados", "Enabled") : uiText(t, "Activar", "Enable")}
+            </button>
+          </div>
         </section>
 
         <section className="settings-section">
@@ -2345,6 +2969,18 @@ function SettingsDialog({
   );
 }
 
+function homeWidgetLabel(widget: HomeWidget, t: (typeof copy)[Lang]) {
+  const labels: Record<HomeWidget, string> = {
+    tasks: t.labels.todayTasks,
+    habits: t.labels.todayHabits,
+    agenda: t.labels.todayAgenda,
+    finance: t.labels.monthFinance,
+    projects: t.projects.title,
+    goals: t.labels.goals,
+  };
+  return labels[widget];
+}
+
 function AuthPanel({
   t,
   user,
@@ -2382,12 +3018,18 @@ function AuthPanel({
 }) {
   if (!enabled) {
     return (
-      <div className="auth-panel">
+      <div className="auth-panel missing-config">
         <div>
-          <strong>{t.localMode}</strong>
-          <span>{t.authHint}</span>
+          <strong>{uiText(t, "Conecta Supabase para entrar", "Connect Supabase to sign in")}</strong>
+          <span>
+            {uiText(
+              t,
+              "Faltan las variables VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY en tu .env local.",
+              "Your local .env is missing VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.",
+            )}
+          </span>
         </div>
-        <span className="sync-pill local">{t.syncDisabled}</span>
+        <span className="sync-pill error">{t.syncError}</span>
       </div>
     );
   }
@@ -2521,6 +3163,8 @@ function TaskList({
             <strong>{task.title}</strong>
             <span>
               {task.time || t.noDate} · {task.areaKey === "estudios" ? t.nav.estudios : t.nav.dia}
+              {task.recurrence && task.recurrence !== "none" ? ` · ${t.recurrences[task.recurrence]}` : ""}
+              {task.tags?.length ? ` · #${task.tags.join(" #")}` : ""}
             </span>
           </div>
           <PriorityPill label={t.priorities[task.priority]} value={task.priority} />
@@ -2588,6 +3232,7 @@ function MovementList({
             <strong>{movement.title}</strong>
             <small>
               {movement.category} · {movement.date || t.noDate}
+              {movement.tags?.length ? ` · #${movement.tags.join(" #")}` : ""}
               {movement.type === "expense" && movement.expenseKind === "shared"
                 ? ` · ${t.labels.sharedWith} ${movement.sharedWith || t.labels.sharedPersonFallback} · ${movement.paidBy === "other" ? t.labels.paidByOther : t.labels.paidByYou} · ${movement.ownerSharePercent ?? 50}/${100 - (movement.ownerSharePercent ?? 50)} · ${t.labels.yourShare} ${money.format(sharedOwnAmount(movement))} · ${t.labels.otherShare} ${money.format(sharedOtherAmount(movement))}`
                 : ""}
@@ -2818,6 +3463,8 @@ function EventList({
             <span>
               {event.date || t.noDate}
               {event.time ? ` · ${event.time}` : ""}
+              {event.recurrence && event.recurrence !== "none" ? ` · ${t.recurrences[event.recurrence]}` : ""}
+              {event.tags?.length ? ` · #${event.tags.join(" #")}` : ""}
             </span>
           </div>
           <ItemActions

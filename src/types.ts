@@ -4,6 +4,7 @@ export type Theme = "light" | "dark";
 export type Currency = "EUR" | "GBP" | "USD";
 export type PriorityKey = "high" | "medium" | "low";
 export type Frequency = "daily" | "weekly" | "monthly";
+export type Recurrence = "none" | "daily" | "weekly" | "monthly";
 export type CalendarMode = "day" | "week" | "month";
 export type ProjectStatus = "todo" | "inProgress" | "blocked" | "done";
 export type ProjectPaymentStatus = "pending" | "partial" | "paid";
@@ -18,6 +19,8 @@ export type Task = {
   areaKey: "estudios" | "dia";
   time: string;
   priority: PriorityKey;
+  recurrence?: Recurrence;
+  tags?: string[];
 };
 
 export type Movement = {
@@ -31,6 +34,7 @@ export type Movement = {
   sharedWith?: string;
   ownerSharePercent?: number;
   paidBy?: ExpensePaidBy;
+  tags?: string[];
 };
 
 export type Habit = {
@@ -47,6 +51,8 @@ export type EventItem = {
   title: string;
   date: string;
   time: string;
+  recurrence?: Recurrence;
+  tags?: string[];
 };
 
 export type Goal = {
@@ -55,6 +61,7 @@ export type Goal = {
   area: string;
   progress: number;
   target: string;
+  tags?: string[];
 };
 
 export type Budget = {
@@ -85,6 +92,8 @@ export type Project = {
   estimatedHours: number;
   actualHours: number;
   notes: string;
+  links?: string[];
+  tags?: string[];
   tasks: ProjectTask[];
 };
 

@@ -66,6 +66,8 @@ export const copy = {
     area: "Área",
     target: "Meta",
     progress: "Progreso",
+    recurrence: "Repetición",
+    tags: "Etiquetas",
     priorityLabel: "Prioridad",
     markDone: "Marcar como hecho",
     days: "días",
@@ -337,6 +339,12 @@ export const copy = {
       weekly: "Semanal",
       monthly: "Mensual",
     },
+    recurrences: {
+      none: "No repetir",
+      daily: "Cada día",
+      weekly: "Cada semana",
+      monthly: "Cada mes",
+    },
     expenseKinds: {
       individual: "Individual",
       shared: "Conjunto",
@@ -356,6 +364,7 @@ export const copy = {
       target: "Ej. 500, domingo, 21 días",
       area: "Ej. Finanzas, estudios, salud",
       sharedWith: "Ej. Pareja, compañera de piso",
+      tags: "Ej. urgente, cliente, salud",
     },
     empty: {
       title: "Aún no hay nada aquí",
@@ -430,6 +439,8 @@ export const copy = {
     area: "Area",
     target: "Target",
     progress: "Progress",
+    recurrence: "Repeat",
+    tags: "Tags",
     priorityLabel: "Priority",
     markDone: "Mark as done",
     days: "days",
@@ -701,6 +712,12 @@ export const copy = {
       weekly: "Weekly",
       monthly: "Monthly",
     },
+    recurrences: {
+      none: "Do not repeat",
+      daily: "Every day",
+      weekly: "Every week",
+      monthly: "Every month",
+    },
     expenseKinds: {
       individual: "Individual",
       shared: "Shared",
@@ -720,6 +737,7 @@ export const copy = {
       target: "E.g. 500, Sunday, 21 days",
       area: "E.g. Finance, study, health",
       sharedWith: "E.g. Partner, flatmate",
+      tags: "E.g. urgent, client, health",
     },
     empty: {
       title: "Nothing here yet",

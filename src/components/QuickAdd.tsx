@@ -185,6 +185,15 @@ export function QuickAdd({
                 <input name="time" type="time" defaultValue={values.time} />
               </label>
               <label>
+                <span>{t.recurrence}</span>
+                <select name="recurrence" defaultValue={values.recurrence || "none"}>
+                  <option value="none">{t.recurrences.none}</option>
+                  <option value="daily">{t.recurrences.daily}</option>
+                  <option value="weekly">{t.recurrences.weekly}</option>
+                  <option value="monthly">{t.recurrences.monthly}</option>
+                </select>
+              </label>
+              <label>
                 <span>{t.priorityLabel}</span>
                 <select name="priority" defaultValue={values.priority || "medium"}>
                   <option value="high">{t.priorities.high}</option>
@@ -214,7 +223,22 @@ export function QuickAdd({
                 <span>{t.time}</span>
                 <input name="time" type="time" defaultValue={values.time} />
               </label>
+              <label>
+                <span>{t.recurrence}</span>
+                <select name="recurrence" defaultValue={values.recurrence || "none"}>
+                  <option value="none">{t.recurrences.none}</option>
+                  <option value="daily">{t.recurrences.daily}</option>
+                  <option value="weekly">{t.recurrences.weekly}</option>
+                  <option value="monthly">{t.recurrences.monthly}</option>
+                </select>
+              </label>
             </>
+          )}
+          {type !== "budget" && (
+            <label>
+              <span>{t.tags}</span>
+              <input name="tags" placeholder={t.placeholders.tags} defaultValue={values.tags} />
+            </label>
           )}
           {type === "goal" && (
             <>
@@ -304,6 +328,7 @@ function formValuesFor(type: QuickType, item: EditableItem) {
       sharedWith: movement.sharedWith || "",
       ownerSharePercent: String(movement.ownerSharePercent ?? 50),
       paidBy: movement.paidBy || "me",
+      tags: (movement.tags || []).join(", "),
     };
   }
   if (type === "budget") {
@@ -316,12 +341,12 @@ function formValuesFor(type: QuickType, item: EditableItem) {
   }
   if (type === "event") {
     const event = item as EventItem;
-    return { title: event.title, date: event.date, time: event.time };
+    return { title: event.title, date: event.date, time: event.time, recurrence: event.recurrence || "none", tags: (event.tags || []).join(", ") };
   }
   if (type === "goal") {
     const goal = item as Goal;
-    return { title: goal.title, area: goal.area, target: goal.target, progress: String(goal.progress) };
+    return { title: goal.title, area: goal.area, target: goal.target, progress: String(goal.progress), tags: (goal.tags || []).join(", ") };
   }
   const task = item as Task;
-  return { title: task.title, time: task.time, priority: task.priority };
+  return { title: task.title, time: task.time, priority: task.priority, recurrence: task.recurrence || "none", tags: (task.tags || []).join(", ") };
 }
