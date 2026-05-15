@@ -3017,16 +3017,23 @@ function AuthPanel({
   onSignOut: () => void;
 }) {
   if (!enabled) {
+    const isLocalHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     return (
       <div className="auth-panel missing-config">
         <div>
           <strong>{uiText(t, "Conecta Supabase para entrar", "Connect Supabase to sign in")}</strong>
           <span>
-            {uiText(
-              t,
-              "Faltan las variables VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY en tu .env local.",
-              "Your local .env is missing VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.",
-            )}
+            {isLocalHost
+              ? uiText(
+                  t,
+                  "Faltan las variables VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY en tu .env local.",
+                  "Your local .env is missing VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.",
+                )
+              : uiText(
+                  t,
+                  "Este despliegue no tiene configuradas VITE_SUPABASE_URL y VITE_SUPABASE_PUBLISHABLE_KEY.",
+                  "This deployment is missing VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.",
+                )}
           </span>
         </div>
         <span className="sync-pill error">{t.syncError}</span>

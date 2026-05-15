@@ -240,6 +240,8 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-key
 ```
 
+For Netlify or another hosted deployment, add the same variables in the site's environment variables and trigger a new deploy. Vite reads `VITE_*` variables at build time, so changing them after a deploy requires rebuilding the site.
+
 Create the user data table:
 
 ```sql
